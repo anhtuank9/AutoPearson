@@ -1,0 +1,7 @@
+/node_modules/
+/.env
+/.pearson-profile/
+/diagnostics/
+*.log
+.DS_Store
+Thumbs.db

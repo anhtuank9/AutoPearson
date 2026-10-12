@@ -1,0 +1,25 @@
+{
+  "name": "autopearson",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser automation for Pearson English Connect assignments",
+  "license": "MIT",
+  "keywords": [
+    "pearson",
+    "english-connect",
+    "playwright",
+    "browser-automation"
+  ],
+  "scripts": {
+    "start": "node src/index.js",
+    "check": "node --check src/index.js && node --check src/assignment.js && node --check src/player.js && node --check src/config.js",
+    "test": "node --test test/*.test.js",
+    "verify": "npm run check && npm test"
+  },
+  "dependencies": {
+    "playwright": "1.62.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
