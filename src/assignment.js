@@ -131,7 +131,18 @@ async function ensureSignedIn(page, config) {
 async function openAssignments(page) {
   const listUrl = 'https://englishconnect.pearson.com/assignments-v2/assignments-students-list';
   if (!page.url().startsWith(listUrl)) await page.goto(listUrl, { waitUntil: 'domcontentloaded' });
-  await page.locator('mat-row[role="row"]').first().waitFor({ state: 'visible', timeout: 30_000 });
+  const firstRow = page.locator('mat-row[role="row"]').first();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (await firstRow.isVisible().catch(() => false)) return;
+    try {
+      await firstRow.waitFor({ state: 'visible', timeout: 20_000 });
+      return;
+    } catch (error) {
+      if (attempt === 3) throw error;
+      log(`Assignment list did not load; reloading (${attempt}/2).`);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+    }
+  }
 }
 
 async function actionEntries(page) {
