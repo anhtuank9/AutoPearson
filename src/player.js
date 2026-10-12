@@ -15,6 +15,11 @@ const SAVE_EXIT = 'button:visible:text-matches("^Save & Exit$", "i"), a:visible:
 const FIELD_SELECTOR = 'input[type="text"]:not([role="presentation"]):not(.pageNumberInput):not([tabindex="-1"]), input[type="edit"]:not([tabindex="-1"]), input:not([type]):not([role="presentation"]):not(.pageNumberInput):not([tabindex="-1"]), textarea, select:not(.textaudio-playback-rate select), [contenteditable="true"]';
 const CHOICE_SELECTOR = 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], .ic_choice, .addon_Text_Selection .selectable';
 
+function normalizeAnswerText(value) {
+  return value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
+    .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
 async function firstVisible(scope, selector) {
   const items = scope.locator(selector);
   const count = await items.count();
@@ -362,13 +367,13 @@ async function fillAnswerPlan(scope, plan) {
       let source = null;
       for (let i = 0; i < await sources.count(); i++) {
         const candidate = sources.nth(i);
-        if ((await candidate.innerText()).replace(/\s+/g, ' ').trim() === answer &&
+        if (normalizeAnswerText(await candidate.innerText()) === normalizeAnswerText(answer) &&
             await candidate.isVisible()) { source = candidate; break; }
       }
       if (!source) throw new Error(`Missing multiple-gap draggable answer: ${answer}`);
       await source.dragTo(target);
       const actual = await target.locator('.placeholder').allInnerTexts();
-      if (!actual.some(text => text.replace(/\s+/g, ' ').trim() === answer)) {
+      if (!actual.some(text => normalizeAnswerText(text) === normalizeAnswerText(answer))) {
         throw new Error(`Multiple-gap ${group.id} did not accept ${answer}`);
       }
     }
@@ -376,7 +381,7 @@ async function fillAnswerPlan(scope, plan) {
   for (const drop of plan.drops) {
     if (drop.preserve) continue;
     if (!/^[A-Za-z0-9_-]+$/.test(drop.id)) throw new Error(`Unexpected drop target ID: ${drop.id}`);
-    const normalized = value => value.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+    const normalized = normalizeAnswerText;
     const sources = scope.locator('.ic_sourceListItem.ui-draggable');
     let source = null;
     for (let i = 0; i < await sources.count(); i++) {

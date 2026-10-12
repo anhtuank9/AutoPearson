@@ -20,6 +20,7 @@ async function main() {
   const page = await context.newPage();
   let activePage = page;
   page.setDefaultTimeout(10_000);
+  page.setDefaultNavigationTimeout(60_000);
   try {
     const connectPage = await ensureSignedIn(page, config);
     activePage = connectPage;

@@ -175,7 +175,7 @@ test('maps revealed words to drag targets and checks the completed exercise', as
     const page = await browser.newPage();
     await page.setContent(`
       <main>
-        <div class="ic_sourceListItem ui-draggable" draggable="true">speaking</div>
+        <div class="ic_sourceListItem ui-draggable" draggable="true">isn’t very</div>
         <div class="ic_sourceListItem ui-draggable" draggable="true">going</div>
         <p>One <span id="3gap-1" class="ic_draggableGapEmpty" style="display:inline-block;width:100px;height:30px;border:1px solid"></span></p>
         <p>Two <span id="gap-2" class="ic_draggableGapEmpty" style="display:inline-block;width:100px;height:30px;border:1px solid"></span></p>
@@ -193,7 +193,7 @@ test('maps revealed words to drag targets and checks the completed exercise', as
         document.querySelector('#reset').addEventListener('click', () => {});
         document.querySelector('#show').addEventListener('click', event => {
           const shown = event.target.className === 'limited-show-answers-button';
-          ['Speaking', 'going'].forEach((word, index) => {
+          ["isn't very", 'going'].forEach((word, index) => {
             const gap = document.querySelectorAll('[id*="gap-"]')[index];
             gap.className = shown ? 'ic_draggableGapFilled-correct-answer' : 'ic_draggableGapEmpty';
             gap.textContent = shown ? word : '';
@@ -216,7 +216,7 @@ test('maps revealed words to drag targets and checks the completed exercise', as
     const result = await solveCurrentPage(page, 5);
     assert.equal(result.status, 'answered');
     assert.equal(result.plan.drops.length, 3);
-    assert.deepEqual(await page.locator('[id*="gap-"]').evaluateAll(elements => elements.map(el => el.textContent)), ['speaking', 'going', 'example']);
+    assert.deepEqual(await page.locator('[id*="gap-"]').evaluateAll(elements => elements.map(el => el.textContent)), ['isn’t very', 'going', 'example']);
     assert.equal(await page.evaluate(() => count), 6);
   } finally {
     await browser.close();
