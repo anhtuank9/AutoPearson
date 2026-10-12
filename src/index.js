@@ -25,11 +25,14 @@ async function main() {
     const connectPage = await ensureSignedIn(page, config);
     activePage = connectPage;
     const result = await runAssignments(connectPage, config);
-    console.log(`Checked ${result.checked} active assignments. ${result.inaccessible.length} lessons remain inaccessible; ${result.closedBelow100.length} closed assignment(s) are below 100%.`);
+    console.log(`Checked ${result.checked} active assignments. ${result.inaccessible.length} lesson(s) remain inaccessible; ${result.unopenedAssignments.length} assignment(s) did not open; ${result.closedBelow100.length} closed assignment(s) are below 100%.`);
+    if (result.unopenedAssignments.length) {
+      console.log(`Could not open: ${result.unopenedAssignments.map(entry => entry.title).join('; ')}`);
+    }
     if (result.closedBelow100.length) {
       console.log(`Closed below 100%: ${result.closedBelow100.map(entry => `${entry.title} ${entry.score}%`).join('; ')}`);
     }
-    if (result.inaccessible.length || result.closedBelow100.length) process.exitCode = 2;
+    if (result.inaccessible.length || result.unopenedAssignments.length || result.closedBelow100.length) process.exitCode = 2;
   } catch (error) {
     console.error(`Stopped: ${error.message}`);
     if (!error.diagnosticSaved && !activePage.isClosed()) await saveDiagnostic(activePage, config, error.message);

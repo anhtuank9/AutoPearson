@@ -47,7 +47,8 @@ async function ensureSignedIn(page, config) {
   }
   const reachedLoginOrPortal = url =>
     url.hostname === 'login.pearson.com' ||
-    (url.hostname === 'english-dashboard.pearson.com' && url.pathname.startsWith('/dashboard')) ||
+    (url.hostname === 'english-dashboard.pearson.com' &&
+      (url.pathname === '/' || url.pathname.startsWith('/dashboard'))) ||
     (url.hostname === 'englishconnect.pearson.com' && /^\/(home|assignments)/.test(url.pathname));
   await page.waitForURL(reachedLoginOrPortal, { timeout: 60_000, waitUntil: 'domcontentloaded' });
   if (/login\.pearson\.com/.test(page.url())) {
@@ -66,9 +67,10 @@ async function ensureSignedIn(page, config) {
       log('Please sign in in the opened browser. Waiting for the dashboard...');
     }
     await page.waitForURL(url =>
-      (url.hostname === 'english-dashboard.pearson.com' && url.pathname.startsWith('/dashboard')) ||
+      (url.hostname === 'english-dashboard.pearson.com' &&
+        (url.pathname === '/' || url.pathname.startsWith('/dashboard'))) ||
       (url.hostname === 'englishconnect.pearson.com' && /^\/(home|assignments)/.test(url.pathname)),
-    { timeout: 300_000 });
+    { timeout: 300_000, waitUntil: 'domcontentloaded' });
   }
   if (/english-dashboard\.pearson\.com/.test(page.url())) {
     if (clientId) {
@@ -154,10 +156,20 @@ async function actionEntries(page) {
 
 async function openAction(page, index) {
   const row = page.locator('mat-row[role="row"]').nth(index);
-  await row.getByRole('button', { name: /^(CONTINUE|START)$/i }).click();
-  await page.waitForURL(/assignment-student-details/, { timeout: 30_000 });
-  await page.locator('mat-row[role="row"]').first().waitFor({ state: 'visible', timeout: 30_000 });
-  return page;
+  const listUrl = page.url();
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await row.getByRole('button', { name: /^(CONTINUE|START)$/i }).click();
+    try {
+      await page.waitForURL(/assignment-student-details/,
+        { timeout: 15_000, waitUntil: 'domcontentloaded' });
+      await page.locator('mat-row[role="row"]').first().waitFor({ state: 'visible', timeout: 30_000 });
+      return true;
+    } catch (error) {
+      if (page.url() !== listUrl || !/Timeout \d+ms exceeded/.test(error.message)) throw error;
+      if (attempt < 2) log('Assignment did not open; retrying START/CONTINUE (1/2).');
+    }
+  }
+  return false;
 }
 
 async function lessonEntries(page) {
@@ -314,6 +326,7 @@ async function runAssignments(page, config) {
   await openAssignments(page);
   const processed = new Set();
   const inaccessible = [];
+  const unopenedAssignments = [];
   const closedBelow100 = new Map();
   for (let i = 0; i < config.maxAssignments; i++) {
     const entries = await actionEntries(page);
@@ -338,18 +351,24 @@ async function runAssignments(page, config) {
         }, oldFirst, { timeout: 30_000 });
         continue;
       }
-      log(`Checked ${processed.size} active assignments; ${inaccessible.length} lessons have no START/CONTINUE; ${closedBelow100.size} closed assignment(s) are below 100%.`);
-      return { checked: processed.size, inaccessible, closedBelow100: [...closedBelow100.values()] };
+      log(`Checked ${processed.size} active assignments; ${inaccessible.length} lesson(s) have no START/CONTINUE; ${unopenedAssignments.length} assignment(s) did not open; ${closedBelow100.size} closed assignment(s) are below 100%.`);
+      return { checked: processed.size, inaccessible, unopenedAssignments, closedBelow100: [...closedBelow100.values()] };
     }
     log(`Assignment ${i + 1}: ${next.title} (due ${next.due})`);
     try {
-      await openAction(page, next.index);
+      if (!await openAction(page, next.index)) {
+        log(`Assignment ${next.title}: START/CONTINUE did not open the assignment.`);
+        unopenedAssignments.push(next);
+        processed.add(next.key);
+        if (config.assignmentFilter) return { checked: processed.size, inaccessible, unopenedAssignments, closedBelow100: [...closedBelow100.values()] };
+        continue;
+      }
       const result = await runAssignmentDetail(page, config);
       log(`Assignment ${next.title}: completed ${result.completed} lessons; ${result.unavailable.length} unavailable.`);
       inaccessible.push(...result.unavailable.map(lesson => ({ assignment: next.title, ...lesson })));
       processed.add(next.key);
       await openAssignments(page);
-      if (config.assignmentFilter) return { checked: processed.size, inaccessible, closedBelow100: [...closedBelow100.values()] };
+      if (config.assignmentFilter) return { checked: processed.size, inaccessible, unopenedAssignments, closedBelow100: [...closedBelow100.values()] };
     } catch (error) {
       if (!error.diagnosticSaved) {
         await saveDiagnostic(page, config, error.message);

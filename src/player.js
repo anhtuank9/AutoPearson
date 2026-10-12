@@ -550,7 +550,7 @@ async function revealAnswers(scope, checkLimit) {
       check = await checkControl(scope);
     }
     if (!check) throw new Error('Could not find the Check control');
-    await check.click();
+    await check.click({ force: true });
     show = await firstVisible(scope, SHOW);
     if (!show) {
       const reset = await resetControl(scope);
@@ -699,7 +699,7 @@ async function solveCurrentPage(page, checkLimit) {
   }
   await fillAnswerPlan(scope, plan);
   const finalCheck = await checkControl(scope);
-  if (finalCheck) await finalCheck.click();
+  if (finalCheck) await finalCheck.click({ force: true });
   const wrongFieldIndices = await scope.evaluate(fieldSelector => {
     const visible = element => {
       const box = element.getBoundingClientRect();
@@ -737,7 +737,7 @@ async function solveCurrentPage(page, checkLimit) {
         }, field.answer);
       }
       const retryCheck = await checkControl(scope);
-      if (retryCheck) await retryCheck.click();
+      if (retryCheck) await retryCheck.click({ force: true });
     }
   }
   if (trace) {
