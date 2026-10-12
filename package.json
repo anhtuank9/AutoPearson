@@ -1,6 +1,6 @@
 {
   "name": "autopearson",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Browser automation for Pearson English Connect assignments",
   "license": "MIT",
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "start": "node src/index.js",
-    "check": "node --check src/index.js && node --check src/assignment.js && node --check src/player.js && node --check src/config.js",
+    "check": "node --check src/index.js && node --check src/assignment.js && node --check src/player.js && node --check src/config.js && node -e \"JSON.parse(require('node:fs').readFileSync('.devcontainer/devcontainer.json'))\"",
     "test": "node --test test/*.test.js",
     "verify": "npm run check && npm test"
   },

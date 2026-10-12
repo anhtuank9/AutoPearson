@@ -21,6 +21,14 @@ function positiveInt(name, fallback) {
   return value;
 }
 
+function booleanValue(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  if (/^(?:1|true|yes)$/i.test(raw)) return true;
+  if (/^(?:0|false|no)$/i.test(raw)) return false;
+  throw new Error(`${name} must be 1/0, true/false, or yes/no`);
+}
+
 function loadConfig() {
   const root = path.resolve(__dirname, '..');
   readEnvFile(path.join(root, '.env'));
@@ -34,7 +42,12 @@ function loadConfig() {
   if (Boolean(username) !== Boolean(password)) {
     throw new Error('Set both PEARSON_USERNAME and PEARSON_PASSWORD, or leave both empty for manual sign-in');
   }
-  const browser = (process.env.PEARSON_BROWSER || 'chrome').trim();
+  const inCodespaces = /^true$/i.test(process.env.CODESPACES || '');
+  const headless = booleanValue('PEARSON_HEADLESS', inCodespaces);
+  if (headless && (!username || !password)) {
+    throw new Error('Headless mode requires both PEARSON_USERNAME and PEARSON_PASSWORD');
+  }
+  const browser = (process.env.PEARSON_BROWSER || (inCodespaces ? 'chromium' : 'chrome')).trim();
   if (!/^(?:chromium|chrome(?:-(?:beta|dev|canary))?|msedge(?:-(?:beta|dev|canary))?)$/.test(browser)) {
     throw new Error('PEARSON_BROWSER must be chromium, chrome, msedge, or a supported beta/dev/canary channel');
   }
@@ -44,6 +57,7 @@ function loadConfig() {
     username,
     password,
     browser,
+    headless,
     viewportHeight: positiveInt('PEARSON_VIEWPORT_HEIGHT', 900),
     maxAssignments: positiveInt('PEARSON_MAX_ASSIGNMENTS', 100),
     maxPages: positiveInt('PEARSON_MAX_PAGES', 300),

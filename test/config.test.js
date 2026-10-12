@@ -10,6 +10,8 @@ const CONFIG_KEYS = [
   'PEARSON_PASSWORD',
   'PEARSON_START_URL',
   'PEARSON_BROWSER',
+  'PEARSON_HEADLESS',
+  'CODESPACES',
   'PEARSON_VIEWPORT_HEIGHT',
   'PEARSON_MAX_ASSIGNMENTS',
   'PEARSON_MAX_PAGES',
@@ -43,6 +45,7 @@ test('loads a safe configuration without credentials', () => {
   }, () => {
     const config = loadConfig();
     assert.equal(config.browser, 'chromium');
+    assert.equal(config.headless, false);
     assert.equal(config.username, '');
     assert.equal(config.checkLimit, 5);
   });
@@ -71,9 +74,33 @@ test('rejects invalid loop limits', () => {
 });
 
 test('launches bundled Chromium without a channel', () => {
-  assert.deepEqual(browserLaunchOptions({ browser: 'chromium' }), {
-    headless: false,
-    args: ['--disable-save-password-bubble'],
+  assert.deepEqual(browserLaunchOptions({ browser: 'chromium', headless: true }), {
+    headless: true,
+    args: ['--disable-save-password-bubble', '--disable-dev-shm-usage'],
   });
-  assert.equal(browserLaunchOptions({ browser: 'chrome' }).channel, 'chrome');
+  assert.deepEqual(browserLaunchOptions({ browser: 'chromium', headless: false }), {
+    headless: false,
+    args: ['--disable-save-password-bubble', '--disable-dev-shm-usage'],
+  });
+  assert.equal(browserLaunchOptions({ browser: 'chrome', headless: false }).channel, 'chrome');
+});
+
+test('uses headless Chromium automatically in Codespaces', () => {
+  withEnvironment({
+    CODESPACES: 'true',
+    PEARSON_USERNAME: 'student',
+    PEARSON_PASSWORD: 'password',
+  }, () => {
+    const config = loadConfig();
+    assert.equal(config.browser, 'chromium');
+    assert.equal(config.headless, true);
+  });
+});
+
+test('requires credentials in headless mode', () => {
+  withEnvironment({
+    PEARSON_HEADLESS: '1',
+    PEARSON_USERNAME: '',
+    PEARSON_PASSWORD: '',
+  }, () => assert.throws(loadConfig, /Headless mode requires both/));
 });

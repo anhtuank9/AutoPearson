@@ -6,8 +6,8 @@ const { ensureSignedIn, runAssignments, saveDiagnostic } = require('./assignment
 
 function browserLaunchOptions(config) {
   const options = {
-    headless: false,
-    args: ['--disable-save-password-bubble'],
+    headless: config.headless,
+    args: ['--disable-save-password-bubble', '--disable-dev-shm-usage'],
   };
   if (config.browser !== 'chromium') options.channel = config.browser;
   return options;

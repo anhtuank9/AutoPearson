@@ -1,0 +1,29 @@
+{
+  "name": "AutoPearson",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  "postCreateCommand": "npm ci && npx playwright install --with-deps chromium",
+  "remoteEnv": {
+    "PEARSON_BROWSER": "chromium",
+    "PEARSON_HEADLESS": "1"
+  },
+  "secrets": {
+    "PEARSON_USERNAME": {
+      "description": "Your own Pearson English Connect username. Required for headless Codespaces runs."
+    },
+    "PEARSON_PASSWORD": {
+      "description": "Your own Pearson English Connect password. Required for headless Codespaces runs."
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "16gb"
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": [
+        "README.md"
+      ]
+    }
+  }
+}

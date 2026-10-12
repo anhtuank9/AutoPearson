@@ -1,6 +1,8 @@
 # AutoPearson
 
-AutoPearson là công cụ Playwright chạy trên máy cá nhân để xử lý các assignment đang mở trong Pearson English Connect. Công cụ đăng nhập, duyệt assignment theo hạn nộp mới nhất, xử lý từng lesson dưới 100%, dùng **Save & Exit**, rồi tải lại danh sách để xác nhận điểm.
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/anhtuank9/AutoPearson?quickstart=1)
+
+AutoPearson là công cụ Playwright chạy trên máy cá nhân hoặc GitHub Codespaces để xử lý các assignment đang mở trong Pearson English Connect. Công cụ đăng nhập, duyệt assignment theo hạn nộp mới nhất, xử lý từng lesson dưới 100%, dùng **Save & Exit**, rồi tải lại danh sách để xác nhận điểm.
 
 > Dự án độc lập, không liên kết hoặc được Pearson xác nhận. Chỉ sử dụng với tài khoản và nội dung bạn được phép thao tác.
 
@@ -12,6 +14,23 @@ AutoPearson là công cụ Playwright chạy trên máy cá nhân để xử lý
 
 ## Cài đặt và chạy
 
+### GitHub Codespaces
+
+Codespaces chạy công cụ trên máy ảo của GitHub bằng Chromium headless, nên không cần cài Node.js hoặc Chrome trên máy cá nhân.
+
+1. Mở **Code → Codespaces → New with options** trong repository. GitHub sẽ đề xuất hai Codespaces Secret `PEARSON_USERNAME` và `PEARSON_PASSWORD`.
+2. Nhập tài khoản Pearson của riêng bạn và cho phép hai secret truy cập repository này. Secret được GitHub cung cấp dưới dạng biến môi trường và không được ghi vào source code.
+3. Tạo Codespace và chờ lệnh thiết lập tự cài Node dependencies cùng Chromium.
+4. Trong terminal của Codespace, chạy:
+
+```bash
+npm start
+```
+
+Có thể dùng nút **Open in GitHub Codespaces** phía trên sau khi đã tạo hai secret. Chế độ headless yêu cầu đủ cả tên đăng nhập và mật khẩu; đăng nhập thủ công không khả dụng trong chế độ này.
+
+### Windows
+
 ```powershell
 git clone https://github.com/anhtuank9/AutoPearson.git
 cd AutoPearson
@@ -21,7 +40,9 @@ notepad .env
 .\run.ps1
 ```
 
-Trên macOS hoặc Linux, tạo `.env` từ `.env.example` rồi chạy:
+### macOS hoặc Linux
+
+Tạo `.env` từ `.env.example` rồi chạy:
 
 ```bash
 npm ci
@@ -58,6 +79,7 @@ Khi gặp loại câu hỏi chưa hỗ trợ hoặc giao diện Pearson thay đ�
 | `PEARSON_USERNAME` | trống | Tên đăng nhập; phải đi cùng mật khẩu |
 | `PEARSON_PASSWORD` | trống | Mật khẩu; phải đi cùng tên đăng nhập |
 | `PEARSON_BROWSER` | `chrome` | `chrome`, `msedge`, một kênh beta/dev/canary, hoặc `chromium` |
+| `PEARSON_HEADLESS` | `0` | Đặt `1` để chạy không có giao diện; Codespaces tự bật |
 | `PEARSON_START_URL` | URL English Connect | Điểm bắt đầu; chỉ chấp nhận miền English Connect |
 | `PEARSON_MAX_ASSIGNMENTS` | `100` | Giới hạn vòng lặp danh sách assignment |
 | `PEARSON_MAX_PAGES` | `300` | Giới hạn số trang trong một lesson |
