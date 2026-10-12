@@ -17,16 +17,27 @@ AutoPearson là công cụ Playwright chạy trên máy cá nhân hoặc GitHub 
 
 Codespaces chạy công cụ trên máy ảo của GitHub bằng Chromium headless, nên không cần cài Node.js hoặc Chrome trên máy cá nhân.
 
-1. Mở **Code → Codespaces → New with options** trong repository. GitHub sẽ đề xuất hai Codespaces Secret `PEARSON_USERNAME` và `PEARSON_PASSWORD`.
-2. Nhập tài khoản Pearson của riêng bạn và cho phép hai secret truy cập repository này. Secret được GitHub cung cấp dưới dạng biến môi trường và không được ghi vào source code.
-3. Tạo Codespace và chờ lệnh thiết lập tự cài Node dependencies cùng Chromium.
-4. Trong terminal của Codespace, chạy:
+### Mở nhanh bằng một click
+
+Sau khi đã tạo hai secret theo phần thiết lập lần đầu bên dưới:
+
+1. Bấm **[Mở AutoPearson trong GitHub Codespaces](https://codespaces.new/anhtuank9/AutoPearson?quickstart=1)**.
+2. Chờ Codespace khởi tạo và tự cài Node dependencies cùng Chromium.
+3. Trong terminal, chạy:
 
 ```bash
 npm start
 ```
 
-Có thể dùng nút **Open in GitHub Codespaces** phía trên sau khi đã tạo hai secret. Chế độ headless yêu cầu đủ cả tên đăng nhập và mật khẩu; đăng nhập thủ công không khả dụng trong chế độ này.
+### Thiết lập secret lần đầu
+
+1. Mở **[GitHub Codespaces settings](https://github.com/settings/codespaces)**.
+2. Tạo secret `PEARSON_USERNAME` và nhập tên đăng nhập Pearson.
+3. Tạo secret `PEARSON_PASSWORD` và nhập mật khẩu Pearson.
+4. Với mỗi secret, cấp quyền truy cập repository `anhtuank9/AutoPearson`.
+5. Quay lại liên kết **Mở AutoPearson trong GitHub Codespaces** phía trên.
+
+Secret được GitHub cung cấp dưới dạng biến môi trường và không được ghi vào source code. Chế độ headless yêu cầu đủ cả tên đăng nhập và mật khẩu; đăng nhập thủ công không khả dụng trong chế độ này.
 
 ## Cách 2 — Chạy trên máy tính cá nhân
 
