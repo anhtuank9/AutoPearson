@@ -4,6 +4,14 @@
   "private": true,
   "description": "Browser automation for Pearson English Connect assignments",
   "license": "MIT",
+  "homepage": "https://github.com/anhtuank9/AutoPearson#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anhtuank9/AutoPearson.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anhtuank9/AutoPearson/issues"
+  },
   "keywords": [
     "pearson",
     "english-connect",

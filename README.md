@@ -13,7 +13,7 @@ AutoPearson là công cụ Playwright chạy trên máy cá nhân để xử lý
 ## Cài đặt và chạy
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/anhtuank9/AutoPearson.git
 cd AutoPearson
 npm ci
 Copy-Item .env.example .env
