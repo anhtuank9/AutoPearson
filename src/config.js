@@ -1,4 +1,6 @@
-// Copyright (c) 2026 anhtuank9. See LICENSE for non-commercial terms.
+// AutoPearson — Copyright (c) 2026 anhtuank9. All rights reserved.
+// Non-commercial use only. Copying or using this code for profit requires
+// prior written permission: https://github.com/anhtuank9. See LICENSE.
 'use strict';
 
 const fs = require('node:fs');
