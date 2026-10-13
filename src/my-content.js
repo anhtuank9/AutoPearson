@@ -84,6 +84,9 @@ async function openLesson(page, course, title) {
   await page.waitForURL(url => /^\/lesson\/view\/\d+\//.test(url.pathname), { timeout: 30_000 });
   await page.locator('#content-iframe').waitFor({ state: 'attached', timeout: 30_000 });
   for (let attempt = 0; attempt < 120; attempt++) {
+    if (page.frames().some(frame => /pearsonspeakout\.speechace\.co/.test(frame.url()))) {
+      throw new Error('Interactive Speaking Practice uses an external microphone activity without Check');
+    }
     const scope = await playerScope(page);
     const text = await scope.locator('body').innerText().catch(() => '');
     if (/Overview|Result\s*\|/i.test(text) && text.length > 80) return text;
