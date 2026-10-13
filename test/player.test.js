@@ -1,3 +1,4 @@
+// Copyright (c) 2026 anhtuank9. See LICENSE for non-commercial terms.
 'use strict';
 
 const assert = require('node:assert/strict');

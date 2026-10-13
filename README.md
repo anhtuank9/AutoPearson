@@ -6,6 +6,8 @@ AutoPearson là công cụ Playwright chạy trên máy cá nhân hoặc GitHub 
 
 > Dự án độc lập, không liên kết hoặc được Pearson xác nhận. Chỉ sử dụng với tài khoản và nội dung bạn được phép thao tác.
 
+© 2026 anhtuank9. Chỉ được sao chép, sử dụng và chia sẻ mã nguồn cho mục đích phi thương mại theo [LICENSE](LICENSE). Mọi việc sao chép hoặc khai thác để thu lợi cần được chủ sở hữu cho phép trước bằng văn bản. Thông tin sản phẩm và yêu cầu cấp phép: [liên hệ trực tiếp với anhtuank9](https://github.com/anhtuank9).
+
 ## Chọn cách chạy
 
 | Cách | Phù hợp khi |
@@ -133,6 +135,6 @@ npm run verify
 
 Giao diện và nội dung lesson do Pearson cung cấp có thể thay đổi. Bài ghi âm, nội dung bên thứ ba nhúng hoặc dạng câu hỏi mới có thể cần bộ xử lý bổ sung. Assignment bị giáo viên đóng hoặc khóa sau hạn nộp không thể được công cụ mở lại.
 
-## Đóng góp và giấy phép
+## Đóng góp và bản quyền
 
-Xem [CONTRIBUTING.md](CONTRIBUTING.md) trước khi gửi thay đổi. Dự án được phát hành theo giấy phép [MIT](LICENSE).
+Xem [CONTRIBUTING.md](CONTRIBUTING.md) trước khi gửi thay đổi. Mã nguồn được cung cấp theo [giấy phép phi thương mại](LICENSE); mọi quyền thương mại thuộc chủ sở hữu và cần được cho phép trước bằng văn bản. Liên hệ về sản phẩm qua [trang GitHub của anhtuank9](https://github.com/anhtuank9).

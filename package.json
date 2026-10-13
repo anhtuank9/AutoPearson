@@ -3,7 +3,8 @@
   "version": "0.2.0",
   "private": true,
   "description": "Browser automation for Pearson English Connect assignments",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "anhtuank9 (https://github.com/anhtuank9)",
   "homepage": "https://github.com/anhtuank9/AutoPearson#readme",
   "repository": {
     "type": "git",

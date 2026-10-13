@@ -1,3 +1,4 @@
+# Copyright (c) 2026 anhtuank9. See LICENSE for non-commercial terms.
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localPlaywright = Join-Path $projectRoot 'node_modules\playwright'
