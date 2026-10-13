@@ -23,6 +23,7 @@ const CONFIG_KEYS = [
   'PEARSON_LESSON_FILTER',
   'PEARSON_SECTION',
   'PEARSON_COURSE_FILTER',
+  'PEARSON_MAX_MY_CONTENT_LESSONS',
 ];
 
 function withEnvironment(overrides, callback) {

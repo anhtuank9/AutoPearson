@@ -22,6 +22,7 @@
   "scripts": {
     "start": "node src/index.js",
     "my-content": "node src/index.js --my-content",
+    "my-content:solve": "node src/index.js --my-content-solve",
     "check": "node --check src/index.js && node --check src/assignment.js && node --check src/player.js && node --check src/config.js && node --check src/my-content.js && node -e \"JSON.parse(require('node:fs').readFileSync('.devcontainer/devcontainer.json'))\"",
     "test": "node --test test/*.test.js",
     "verify": "npm run check && npm test"

@@ -316,11 +316,15 @@ async function saveDiagnostic(page, config, reason) {
   log(`Diagnostic saved: ${base}.png and ${base}.json`);
 }
 
-async function runLesson(page, config) {
+async function runLesson(page, config, onReport) {
   const signatures = new Set();
   for (let number = 1; number <= config.maxPages; number++) {
     const scope = await playerScope(page);
-    const signature = await pageSignature(scope);
+    let signature = await pageSignature(scope);
+    for (let retry = 0; retry < 20 && signatures.has(signature); retry++) {
+      await page.waitForTimeout(500);
+      signature = await pageSignature(await playerScope(page));
+    }
     if (signatures.has(signature)) throw new Error(`The lesson returned to an earlier page (${number})`);
     signatures.add(signature);
     log(`Page ${number}: ${page.url()}`);
@@ -329,7 +333,10 @@ async function runLesson(page, config) {
     const afterAnswerSignature = await pageSignature(await playerScope(page));
     if (await advance(page, afterAnswerSignature)) continue;
     const finalText = await (await playerScope(page)).locator('body').innerText().catch(() => '');
-    if (/Lesson Report/i.test(finalText)) log(`Lesson report: ${finalText.replace(/\s+/g, ' ').slice(0, 900)}`);
+    if (/Lesson Report/i.test(finalText)) {
+      log(`Lesson report: ${finalText.replace(/\s+/g, ' ').slice(0, 900)}`);
+      if (onReport) onReport({ score: Number.parseInt(finalText.match(/\bTOTAL\s+(\d+)%/i)?.[1] || '', 10) });
+    }
     await saveAndExit(page);
     return number;
   }

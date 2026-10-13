@@ -6,7 +6,7 @@
 const { chromium } = require('playwright');
 const { loadConfig } = require('./config');
 const { ensureSignedIn, runAssignments, saveDiagnostic } = require('./assignment');
-const { runMyContent } = require('./my-content');
+const { runMyContent, runMyContentSolve } = require('./my-content');
 
 function browserLaunchOptions(config) {
   const options = {
@@ -38,6 +38,12 @@ async function main() {
     if (config.section === 'my-content') {
       const result = await runMyContent(connectPage, config);
       console.log(`My Content preview: ${result.courses} course(s), ${result.lessons} lesson(s) listed. No lesson was opened or checked.`);
+      return;
+    }
+    if (config.section === 'my-content-solve') {
+      const result = await runMyContentSolve(connectPage, config);
+      console.log(`My Content: visited ${result.visited} lesson(s), saved ${result.completed}, already complete ${result.alreadyComplete}, failed ${result.failures.length}.`);
+      if (result.failures.length) process.exitCode = 2;
       return;
     }
     const result = await runAssignments(connectPage, config);

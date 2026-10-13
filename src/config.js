@@ -54,9 +54,11 @@ function loadConfig() {
   if (!/^(?:chromium|chrome(?:-(?:beta|dev|canary))?|msedge(?:-(?:beta|dev|canary))?)$/.test(browser)) {
     throw new Error('PEARSON_BROWSER must be chromium, chrome, msedge, or a supported beta/dev/canary channel');
   }
-  const section = process.argv.includes('--my-content') ? 'my-content' : (process.env.PEARSON_SECTION || 'assignments').trim();
-  if (!['assignments', 'my-content'].includes(section)) {
-    throw new Error('PEARSON_SECTION must be assignments or my-content');
+  const section = process.argv.includes('--my-content-solve') ? 'my-content-solve'
+    : process.argv.includes('--my-content') ? 'my-content'
+      : (process.env.PEARSON_SECTION || 'assignments').trim();
+  if (!['assignments', 'my-content', 'my-content-solve'].includes(section)) {
+    throw new Error('PEARSON_SECTION must be assignments, my-content, or my-content-solve');
   }
   return {
     root,
@@ -68,6 +70,7 @@ function loadConfig() {
     headless,
     viewportHeight: positiveInt('PEARSON_VIEWPORT_HEIGHT', 900),
     maxAssignments: positiveInt('PEARSON_MAX_ASSIGNMENTS', 100),
+    maxMyContentLessons: positiveInt('PEARSON_MAX_MY_CONTENT_LESSONS', 500),
     maxPages: positiveInt('PEARSON_MAX_PAGES', 300),
     checkLimit: positiveInt('PEARSON_CHECK_LIMIT', 5),
     assignmentFilter: (process.env.PEARSON_ASSIGNMENT_FILTER || '').trim().toLocaleLowerCase(),

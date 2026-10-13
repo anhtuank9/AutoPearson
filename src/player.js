@@ -604,6 +604,8 @@ async function solveCurrentPage(page, checkLimit) {
   const scope = await playerScope(page);
   const done = await firstVisible(scope, DONE);
   if (done) { await done.click(); return { status: 'done', scope }; }
+  const existingResult = await scope.locator('body').innerText().catch(() => '');
+  if (/Result\s*\|\s*100%/i.test(existingResult)) return { status: 'already-complete', scope };
   const before = await captureFields(scope);
   const hasCheck = !!await firstVisible(scope, CHECK);
   const hasShow = !!await firstVisible(scope, SHOW);
@@ -766,11 +768,16 @@ async function advance(page, previousSignature) {
     const newScope = await playerScope(page);
     const signature = await pageSignature(newScope).catch(() => '');
     const content = await newScope.locator('body').innerText().catch(() => '');
+    const activityText = await newScope.evaluate(() => {
+      const root = document.querySelector('.ic_page, .ic-player, #player, main') || document.body;
+      return (root?.innerText || '').replace(/[\u200b-\u200f\u2060\ufeff]/g, '')
+        .replace(/\s+/g, ' ').trim();
+    }).catch(() => '');
     const ready = content.trim().length >= 100 ||
       !!await firstVisible(newScope, CHECK) ||
       !!await firstVisible(newScope, SHOW) ||
       !!await firstVisible(newScope, DONE);
-    if (!ready || !signature || signature === previousSignature) continue;
+    if (!ready || activityText.length < 10 || !signature || signature === previousSignature) continue;
     await page.waitForTimeout(400);
     if (await pageSignature(await playerScope(page)).catch(() => '') === signature) return true;
   }
@@ -779,6 +786,8 @@ async function advance(page, previousSignature) {
 
 async function saveAndExit(page) {
   const scope = await playerScope(page);
+  const courseExit = page.locator('.save-and-logo-container button.back-button').first();
+  if (await courseExit.isVisible().catch(() => false)) return clickSaveAndExit(page, courseExit);
   const matches = page.getByText(/^SAVE\s*&\s*EXIT$/i);
   for (let i = 0; i < await matches.count(); i++) {
     const exit = matches.nth(i);
@@ -786,10 +795,6 @@ async function saveAndExit(page) {
   }
   const fallback = await firstVisible(page, SAVE_EXIT) || await firstVisible(scope, SAVE_EXIT);
   if (fallback) return clickSaveAndExit(page, fallback);
-  const bodyText = await page.locator('body').innerText();
-  if (/SAVE\s*&\s*EXIT/i.test(bodyText)) {
-    return clickSaveAndExit(page, { click: () => page.mouse.click(70, 32) });
-  }
   const nodes = await page.evaluate(() => [...document.querySelectorAll('*')]
     .filter(element => element.textContent?.trim() === 'SAVE & EXIT')
     .slice(0, 5).map(element => element.outerHTML.slice(0, 300)));
@@ -800,8 +805,9 @@ async function clickSaveAndExit(page, exit) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const returned = Promise.any([
       page.waitForURL(url => url.hostname === 'englishconnect.pearson.com' &&
-        url.pathname.startsWith('/assignments-v2/assignment/') &&
-        url.pathname.includes('/assignment-student-details/'), { timeout: 45_000 }),
+        ((url.pathname.startsWith('/assignments-v2/assignment/') &&
+          url.pathname.includes('/assignment-student-details/')) ||
+          /^\/courses\/\d+\/next\//.test(url.pathname)), { timeout: 45_000 }),
       page.waitForEvent('close', { timeout: 45_000 }),
     ]);
     await exit.click({ timeout: 10_000 }).catch(() => {});
@@ -816,7 +822,7 @@ async function clickSaveAndExit(page, exit) {
       }
     }
   }
-  const error = new Error('Save & Exit did not return to the assignment after 3 attempts');
+  const error = new Error('Save & Exit did not return to the assignment or course after 3 attempts');
   error.saveExitTimeout = true;
   throw error;
 }

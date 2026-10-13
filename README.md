@@ -98,12 +98,16 @@ Khi gặp loại câu hỏi chưa hỗ trợ hoặc giao diện Pearson thay đ�
 
 ### My Content (xem trước)
 
-Chạy `npm run my-content` để liệt kê khóa học. Đặt `PEARSON_COURSE_FILTER` thành một phần tên khóa học để liệt kê các lesson trong khóa đó. Chế độ xem trước **không mở lesson, điền đáp án hoặc nhấn Check**. Các bài chỉ có một lượt Check cần được giới hạn phạm vi và xác nhận trước khi tự động gửi đáp án.
+Chạy `npm run my-content` để liệt kê khóa học. Đặt `PEARSON_COURSE_FILTER` thành một phần tên khóa học để liệt kê các lesson trong khóa đó, hoặc đặt `*` để liệt kê lesson của tất cả khóa học. Chế độ xem trước **không mở lesson, điền đáp án hoặc nhấn Check**. Các bài chỉ có một lượt Check cần được giới hạn phạm vi và xác nhận trước khi tự động gửi đáp án.
+
+Để xử lý các lesson trong phạm vi đã chọn, chạy `npm run my-content:solve`. Lệnh này có thể nhấn Check tối đa 5 lần để mở Show Answers, điền đáp án, nhấn Check lần cuối và Save & Exit. Nó bỏ qua trang đã đạt 100%, ghi chẩn đoán cho trang không xử lý được và tiếp tục lesson kế tiếp. **Phải đặt `PEARSON_COURSE_FILTER`**; dùng `*` nếu muốn toàn bộ khóa học. Một số dạng nghe, ghi âm, viết tự do và bài chỉ có một lượt Check vẫn có thể không hoàn thành tự động.
 
 Ví dụ trong terminal Codespaces:
 
 ```bash
 PEARSON_COURSE_FILTER='Speakout A2+ – Online Practice' npm run my-content
+# Chạy toàn bộ My Content sau khi đã kiểm tra phạm vi:
+PEARSON_COURSE_FILTER='*' npm run my-content:solve
 ```
 
 ## Cấu hình
@@ -120,8 +124,9 @@ PEARSON_COURSE_FILTER='Speakout A2+ – Online Practice' npm run my-content
 | `PEARSON_CHECK_LIMIT` | `5` | Số lần Check tối đa trước Show Answers |
 | `PEARSON_ASSIGNMENT_FILTER` | trống | Chỉ xử lý assignment có tên chứa chuỗi này |
 | `PEARSON_LESSON_FILTER` | trống | Chỉ xử lý lesson có tên chứa chuỗi này |
-| `PEARSON_SECTION` | `assignments` | `assignments` hoặc `my-content` (xem trước) |
-| `PEARSON_COURSE_FILTER` | trống | Chỉ xem danh sách lesson của khóa My Content có tên khớp |
+| `PEARSON_SECTION` | `assignments` | `assignments`, `my-content` (xem trước) hoặc `my-content-solve` |
+| `PEARSON_COURSE_FILTER` | trống | Xem lesson của khóa My Content có tên khớp; `*` là tất cả khóa học |
+| `PEARSON_MAX_MY_CONTENT_LESSONS` | `500` | Giới hạn lesson duyệt trong một lần chạy `my-content:solve` |
 | `PEARSON_VIEWPORT_HEIGHT` | `900` | Chiều cao cửa sổ trình duyệt |
 | `PEARSON_TRACE_ANSWERS` | `0` | Ghi trace chi tiết khi đặt thành `1` |
 
