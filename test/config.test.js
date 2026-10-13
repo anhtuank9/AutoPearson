@@ -21,6 +21,8 @@ const CONFIG_KEYS = [
   'PEARSON_CHECK_LIMIT',
   'PEARSON_ASSIGNMENT_FILTER',
   'PEARSON_LESSON_FILTER',
+  'PEARSON_SECTION',
+  'PEARSON_COURSE_FILTER',
 ];
 
 function withEnvironment(overrides, callback) {
@@ -51,6 +53,15 @@ test('loads a safe configuration without credentials', () => {
     assert.equal(config.headless, false);
     assert.equal(config.username, '');
     assert.equal(config.checkLimit, 5);
+    assert.equal(config.section, 'assignments');
+  });
+});
+
+test('selects My Content preview without a course filter', () => {
+  withEnvironment({ PEARSON_SECTION: 'my-content' }, () => {
+    const config = loadConfig();
+    assert.equal(config.section, 'my-content');
+    assert.equal(config.courseFilter, '');
   });
 });
 

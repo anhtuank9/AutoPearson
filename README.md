@@ -96,6 +96,16 @@ Sau đó đặt `PEARSON_BROWSER=chromium` trong `.env`.
 
 Khi gặp loại câu hỏi chưa hỗ trợ hoặc giao diện Pearson thay đổi, công cụ dừng tại trang đó và ghi dữ liệu vào `diagnostics/` thay vì tự bỏ qua câu hỏi.
 
+### My Content (xem trước)
+
+Chạy `npm run my-content` để liệt kê khóa học. Đặt `PEARSON_COURSE_FILTER` thành một phần tên khóa học để liệt kê các lesson trong khóa đó. Chế độ xem trước **không mở lesson, điền đáp án hoặc nhấn Check**. Các bài chỉ có một lượt Check cần được giới hạn phạm vi và xác nhận trước khi tự động gửi đáp án.
+
+Ví dụ trong terminal Codespaces:
+
+```bash
+PEARSON_COURSE_FILTER='Speakout A2+ – Online Practice' npm run my-content
+```
+
 ## Cấu hình
 
 | Biến | Mặc định | Ý nghĩa |
@@ -110,6 +120,8 @@ Khi gặp loại câu hỏi chưa hỗ trợ hoặc giao diện Pearson thay đ�
 | `PEARSON_CHECK_LIMIT` | `5` | Số lần Check tối đa trước Show Answers |
 | `PEARSON_ASSIGNMENT_FILTER` | trống | Chỉ xử lý assignment có tên chứa chuỗi này |
 | `PEARSON_LESSON_FILTER` | trống | Chỉ xử lý lesson có tên chứa chuỗi này |
+| `PEARSON_SECTION` | `assignments` | `assignments` hoặc `my-content` (xem trước) |
+| `PEARSON_COURSE_FILTER` | trống | Chỉ xem danh sách lesson của khóa My Content có tên khớp |
 | `PEARSON_VIEWPORT_HEIGHT` | `900` | Chiều cao cửa sổ trình duyệt |
 | `PEARSON_TRACE_ANSWERS` | `0` | Ghi trace chi tiết khi đặt thành `1` |
 

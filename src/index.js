@@ -6,6 +6,7 @@
 const { chromium } = require('playwright');
 const { loadConfig } = require('./config');
 const { ensureSignedIn, runAssignments, saveDiagnostic } = require('./assignment');
+const { runMyContent } = require('./my-content');
 
 function browserLaunchOptions(config) {
   const options = {
@@ -34,6 +35,11 @@ async function main() {
   try {
     const connectPage = await ensureSignedIn(page, config);
     activePage = connectPage;
+    if (config.section === 'my-content') {
+      const result = await runMyContent(connectPage, config);
+      console.log(`My Content preview: ${result.courses} course(s), ${result.lessons} lesson(s) listed. No lesson was opened or checked.`);
+      return;
+    }
     const result = await runAssignments(connectPage, config);
     console.log(`Checked ${result.checked} active assignments. ${result.inaccessible.length} lesson(s) remain inaccessible; ${result.unopenedAssignments.length} assignment(s) did not open; ${result.closedBelow100.length} closed assignment(s) are below 100%.`);
     if (result.unopenedAssignments.length) {

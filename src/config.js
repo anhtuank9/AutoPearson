@@ -54,12 +54,17 @@ function loadConfig() {
   if (!/^(?:chromium|chrome(?:-(?:beta|dev|canary))?|msedge(?:-(?:beta|dev|canary))?)$/.test(browser)) {
     throw new Error('PEARSON_BROWSER must be chromium, chrome, msedge, or a supported beta/dev/canary channel');
   }
+  const section = process.argv.includes('--my-content') ? 'my-content' : (process.env.PEARSON_SECTION || 'assignments').trim();
+  if (!['assignments', 'my-content'].includes(section)) {
+    throw new Error('PEARSON_SECTION must be assignments or my-content');
+  }
   return {
     root,
     startUrl,
     username,
     password,
     browser,
+    section,
     headless,
     viewportHeight: positiveInt('PEARSON_VIEWPORT_HEIGHT', 900),
     maxAssignments: positiveInt('PEARSON_MAX_ASSIGNMENTS', 100),
@@ -67,6 +72,7 @@ function loadConfig() {
     checkLimit: positiveInt('PEARSON_CHECK_LIMIT', 5),
     assignmentFilter: (process.env.PEARSON_ASSIGNMENT_FILTER || '').trim().toLocaleLowerCase(),
     lessonFilter: (process.env.PEARSON_LESSON_FILTER || '').trim().toLocaleLowerCase(),
+    courseFilter: (process.env.PEARSON_COURSE_FILTER || '').trim().toLocaleLowerCase(),
     diagnosticsDir: path.join(root, 'diagnostics'),
   };
 }
