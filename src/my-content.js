@@ -102,6 +102,7 @@ async function runMyContentSolve(page, config) {
     ? allCourses : allCourses.filter(course => course.title.toLocaleLowerCase().includes(config.courseFilter));
   if (!courses.length) throw new Error(`No My Content course matches PEARSON_COURSE_FILTER=${config.courseFilter}`);
   let visited = 0;
+  let seen = 0;
   let completed = 0;
   let alreadyComplete = 0;
   const failures = [];
@@ -110,12 +111,14 @@ async function runMyContentSolve(page, config) {
       .filter(title => !config.lessonFilter || title.toLocaleLowerCase().includes(config.lessonFilter));
     console.log(`My Content ${course.title}: ${lessons.length} lesson(s).`);
     for (const title of lessons) {
+      seen++;
+      if (seen < config.myContentStartAt) continue;
       if (visited >= config.maxMyContentLessons) {
         console.log(`Stopped at PEARSON_MAX_MY_CONTENT_LESSONS=${config.maxMyContentLessons}.`);
         return { courses: courses.length, visited, completed, alreadyComplete, failures };
       }
       visited++;
-      console.log(`My Content lesson ${visited}: ${course.title} / ${title}`);
+      console.log(`My Content lesson ${seen}: ${course.title} / ${title}`);
       try {
         const overview = await openLesson(page, course, title);
         if (/\bOverview\s*100%/i.test(overview)) {

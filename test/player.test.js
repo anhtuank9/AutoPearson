@@ -139,6 +139,57 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
   }
 });
 
+test('fills a revealed true-false checkbox table', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <table class="tf_checkbox"><tbody>
+          <tr class="tf_checkbox_row"><td>Activity</td><td>Brett</td><td>Carmen</td></tr>
+          <tr class="tf_checkbox_row"><td>Won money</td>
+            <td class="tf_checkbox_image up" onclick="this.classList.toggle('down')">Brett</td>
+            <td class="tf_checkbox_image up" onclick="this.classList.toggle('down')">Carmen</td></tr>
+          <tr class="tf_checkbox_row"><td>On television</td>
+            <td class="tf_checkbox_image up" onclick="this.classList.toggle('down')">Brett</td>
+            <td class="tf_checkbox_image up" onclick="this.classList.toggle('down')">Carmen</td></tr>
+        </tbody></table>
+        <button class="ic_button_limited_check" id="check">Check</button>
+        <button class="ic_button_reset" id="reset">Reset</button>
+        <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
+      </main>
+      <script>
+        let count = 0;
+        document.querySelector('#check').onclick = event => {
+          if (event.target.className === 'ic_button_limited_check') {
+            count++;
+            event.target.className = 'ic_button_limited_uncheck';
+            if (count === 5) document.querySelector('#show').hidden = false;
+          } else event.target.className = 'ic_button_limited_check';
+        };
+        document.querySelector('#reset').onclick = () => {
+          document.querySelector('#check').className = 'ic_button_limited_check';
+          for (const cell of document.querySelectorAll('td.tf_checkbox_image')) cell.classList.remove('down');
+        };
+        document.querySelector('#show').onclick = event => {
+          const cells = document.querySelectorAll('td.tf_checkbox_image');
+          const reveal = event.target.className === 'limited-show-answers-button';
+          for (const index of [0, 3]) cells[index].classList.toggle('correct-answer', reveal);
+          event.target.className = reveal ? 'limited-hide-answers-button' : 'limited-show-answers-button';
+        };
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.equal(result.status, 'answered');
+    assert.deepEqual(result.plan.tableCheckbox, [{ rowIndex: 0, cellIndex: 0 }, { rowIndex: 1, cellIndex: 1 }]);
+    assert.deepEqual(await page.locator('td.tf_checkbox_image').evaluateAll(cells => cells.map(cell => cell.classList.contains('down'))),
+      [true, false, false, true]);
+    assert.equal(await page.evaluate(() => count), 6);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('avoids duplicating a fixed first letter in an edit gap', async () => {
   const browser = await launchTestBrowser();
   try {

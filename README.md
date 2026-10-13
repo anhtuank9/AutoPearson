@@ -102,6 +102,8 @@ Chạy `npm run my-content` để liệt kê khóa học. Đặt `PEARSON_COURSE
 
 Để xử lý các lesson trong phạm vi đã chọn, chạy `npm run my-content:solve`. Lệnh này có thể nhấn Check tối đa 5 lần để mở Show Answers, điền đáp án, nhấn Check lần cuối và Save & Exit. Nó bỏ qua trang đã đạt 100%, ghi chẩn đoán cho trang không xử lý được và tiếp tục lesson kế tiếp. **Phải đặt `PEARSON_COURSE_FILTER`**; dùng `*` nếu muốn toàn bộ khóa học. Một số dạng nghe, ghi âm, viết tự do và bài chỉ có một lượt Check vẫn có thể không hoàn thành tự động.
 
+Nếu một lần chạy bị gián đoạn, `PEARSON_MY_CONTENT_START_AT` cho phép bắt đầu từ số thứ tự lesson trong nhật ký của cùng danh sách khóa học. Ví dụ `PEARSON_MY_CONTENT_START_AT=18` bỏ qua 17 lesson đầu; đặt lại `1` để quét toàn bộ. Chỉ dùng điểm tiếp tục khi danh sách khóa học và bộ lọc không đổi.
+
 Ví dụ trong terminal Codespaces:
 
 ```bash
@@ -127,6 +129,7 @@ PEARSON_COURSE_FILTER='*' npm run my-content:solve
 | `PEARSON_SECTION` | `assignments` | `assignments`, `my-content` (xem trước) hoặc `my-content-solve` |
 | `PEARSON_COURSE_FILTER` | trống | Xem lesson của khóa My Content có tên khớp; `*` là tất cả khóa học |
 | `PEARSON_MAX_MY_CONTENT_LESSONS` | `500` | Giới hạn lesson duyệt trong một lần chạy `my-content:solve` |
+| `PEARSON_MY_CONTENT_START_AT` | `1` | Bắt đầu từ số thứ tự lesson này trong phạm vi lọc |
 | `PEARSON_VIEWPORT_HEIGHT` | `900` | Chiều cao cửa sổ trình duyệt |
 | `PEARSON_TRACE_ANSWERS` | `0` | Ghi trace chi tiết khi đặt thành `1` |
 

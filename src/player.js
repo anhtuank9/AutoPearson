@@ -38,6 +38,33 @@ async function checkControl(scope) {
     await firstVisible(scope, CHECK);
 }
 
+async function clickCheck(check) {
+  try {
+    await check.click({ force: true, timeout: 5000 });
+  } catch (error) {
+    if (!/outside of the viewport/i.test(error.message) || !await check.isVisible().catch(() => false)) throw error;
+    await check.evaluate(element => {
+      if (element.classList.contains('disabled') || element.getAttribute('aria-disabled') === 'true') {
+        throw new Error('Check became disabled before it could be clicked');
+      }
+      element.click();
+    });
+  }
+}
+
+async function clickAllChecks(scope) {
+  const seen = new Set();
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const check = await checkControl(scope);
+    if (!check) return;
+    const key = await check.evaluate(element => element.id || element.outerHTML.slice(0, 300));
+    if (seen.has(key)) return;
+    seen.add(key);
+    await clickCheck(check);
+  }
+  throw new Error('More than 30 Check controls appeared on one page');
+}
+
 async function resetControl(scope) {
   return await firstVisible(scope, '.ic_button_reset:not(.disabled):visible') ||
     await firstVisible(scope, RESET);
@@ -167,6 +194,12 @@ async function captureOverlay(scope) {
           .filter(cell => /correct-answer/.test(cell.className))
           .map(cell => ({ rowIndex,
             cellIndex: [...row.querySelectorAll(':scope > td.tf_radio_image')].indexOf(cell) })));
+    const tableCheckbox = [...document.querySelectorAll('tr:has(> td.tf_checkbox_image)')]
+      .filter(visible).flatMap((row, rowIndex) =>
+        [...row.querySelectorAll(':scope > td.tf_checkbox_image')]
+          .filter(cell => /correct-answer/.test(cell.className))
+          .map(cell => ({ rowIndex,
+            cellIndex: [...row.querySelectorAll(':scope > td.tf_checkbox_image')].indexOf(cell) })));
     const ordering = [...document.querySelectorAll('table.ic_ordering[id]')].filter(visible)
       .map(table => ({ id: table.id,
         items: [...table.querySelectorAll('tbody > tr .ic_ordering-item')]
@@ -175,7 +208,7 @@ async function captureOverlay(scope) {
       .map(addon => ({ id: addon.id,
         answers: [...addon.querySelectorAll('.placeholder-show-answers')]
           .map(item => (item.innerText || '').replace(/\s+/g, ' ').trim()) }));
-    return { markers, fields, choices, coloring, tableRadio, ordering, multigap };
+    return { markers, fields, choices, coloring, tableRadio, tableCheckbox, ordering, multigap };
   }, { fieldSelector: FIELD_SELECTOR, choiceSelector: CHOICE_SELECTOR });
 }
 
@@ -305,6 +338,7 @@ function buildAnswerPlan(before, overlay) {
     .map(marker => ({ id: marker.id, choiceIndex: marker.choiceIndex }));
   return { fields, choices: [...choices], options, drops,
     coloring: overlay.coloring || [], tableRadio: overlay.tableRadio || [],
+    tableCheckbox: overlay.tableCheckbox || [],
     ordering: overlay.ordering || [], multigap: overlay.multigap || [] };
 }
 
@@ -342,6 +376,16 @@ async function fillAnswerPlan(scope, plan) {
   for (const radio of plan.tableRadio) {
     await scope.locator('tr:has(> td.tf_radio_image)').nth(radio.rowIndex)
       .locator(':scope > td.tf_radio_image').nth(radio.cellIndex).click();
+  }
+  const checkboxRows = scope.locator('tr:has(> td.tf_checkbox_image)');
+  for (let rowIndex = 0; rowIndex < await checkboxRows.count(); rowIndex++) {
+    const cells = checkboxRows.nth(rowIndex).locator(':scope > td.tf_checkbox_image');
+    for (let cellIndex = 0; cellIndex < await cells.count(); cellIndex++) {
+      const cell = cells.nth(cellIndex);
+      const selected = await cell.evaluate(element => element.classList.contains('down'));
+      const expected = plan.tableCheckbox.some(answer => answer.rowIndex === rowIndex && answer.cellIndex === cellIndex);
+      if (selected !== expected) await cell.click();
+    }
   }
   for (const order of plan.ordering) {
     if (!/^[A-Za-z0-9_-]+$/.test(order.id)) throw new Error(`Unexpected ordering table ID: ${order.id}`);
@@ -553,7 +597,7 @@ async function revealAnswers(scope, checkLimit) {
       check = await checkControl(scope);
     }
     if (!check) throw new Error('Could not find the Check control');
-    await check.click({ force: true });
+    await clickCheck(check);
     show = await firstVisible(scope, SHOW);
     if (!show) {
       const reset = await resetControl(scope);
@@ -639,7 +683,7 @@ async function solveCurrentPage(page, checkLimit) {
     ? { before, overlay, plan, shownHtml: await scope.evaluate(() => document.body.innerHTML) }
     : null;
   if (plan.fields.length + plan.choices.length + plan.options.length + plan.drops.length +
-      plan.coloring.length + plan.tableRadio.length + plan.ordering.length + plan.multigap.length === 0 &&
+      plan.coloring.length + plan.tableRadio.length + plan.tableCheckbox.length + plan.ordering.length + plan.multigap.length === 0 &&
       !await scope.locator('.addon_Connection:visible canvas.connections').count()) {
     const file = path.join(process.cwd(), 'diagnostics', `unmapped-overlay-${Date.now()}.html`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -683,7 +727,7 @@ async function solveCurrentPage(page, checkLimit) {
   if (reset) await clickReset(scope, reset);
   if (before.fields.length + before.choices.length + before.drops.length > 0 &&
       plan.fields.length + plan.choices.length + plan.options.length + plan.drops.length +
-      plan.coloring.length + plan.tableRadio.length + plan.ordering.length +
+      plan.coloring.length + plan.tableRadio.length + plan.tableCheckbox.length + plan.ordering.length +
       plan.multigap.length + plan.connections.length === 0) {
     throw new Error('Answers were shown, but no supported answer markers could be mapped to controls');
   }
@@ -694,7 +738,7 @@ async function solveCurrentPage(page, checkLimit) {
     throw new Error(`Mapped ${plan.drops.length}/${before.drops.length} drag answers`);
   }
   if (plan.fields.length + plan.choices.length + plan.options.length + plan.drops.length +
-      plan.coloring.length + plan.tableRadio.length + plan.ordering.length +
+    plan.coloring.length + plan.tableRadio.length + plan.tableCheckbox.length + plan.ordering.length +
       plan.multigap.length + plan.connections.length === 0) {
     console.error('Unmapped controls:', JSON.stringify({
       fields: before.fields, choices: before.choices, drops: before.drops,
@@ -703,8 +747,7 @@ async function solveCurrentPage(page, checkLimit) {
     throw new Error('This exercise type needs an answer adapter; no answers were mapped');
   }
   await fillAnswerPlan(scope, plan);
-  const finalCheck = await checkControl(scope);
-  if (finalCheck) await finalCheck.click({ force: true });
+  await clickAllChecks(scope);
   const wrongFieldIndices = await scope.evaluate(fieldSelector => {
     const visible = element => {
       const box = element.getBoundingClientRect();
@@ -741,8 +784,7 @@ async function solveCurrentPage(page, checkLimit) {
           element.value = value;
         }, field.answer);
       }
-      const retryCheck = await checkControl(scope);
-      if (retryCheck) await retryCheck.click({ force: true });
+      await clickAllChecks(scope);
     }
   }
   if (trace) {

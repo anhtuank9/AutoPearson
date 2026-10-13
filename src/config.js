@@ -71,6 +71,7 @@ function loadConfig() {
     viewportHeight: positiveInt('PEARSON_VIEWPORT_HEIGHT', 900),
     maxAssignments: positiveInt('PEARSON_MAX_ASSIGNMENTS', 100),
     maxMyContentLessons: positiveInt('PEARSON_MAX_MY_CONTENT_LESSONS', 500),
+    myContentStartAt: positiveInt('PEARSON_MY_CONTENT_START_AT', 1),
     maxPages: positiveInt('PEARSON_MAX_PAGES', 300),
     checkLimit: positiveInt('PEARSON_CHECK_LIMIT', 5),
     assignmentFilter: (process.env.PEARSON_ASSIGNMENT_FILTER || '').trim().toLocaleLowerCase(),
