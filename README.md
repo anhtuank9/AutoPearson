@@ -31,6 +31,8 @@ Sau khi đã tạo hai secret theo phần thiết lập lần đầu bên dướ
 npm start
 ```
 
+Ngay khi chạy, terminal hiển thị bản quyền của `anhtuank9`, giới hạn sử dụng phi thương mại và liên kết liên hệ, trước khi công cụ bắt đầu đăng nhập Pearson.
+
 ### Thiết lập secret lần đầu
 
 1. Mở **[GitHub Codespaces settings](https://github.com/settings/codespaces)**.

@@ -16,7 +16,14 @@ function browserLaunchOptions(config) {
   return options;
 }
 
+function printCopyrightNotice() {
+  console.log('AutoPearson © 2026 anhtuank9. All rights reserved.');
+  console.log('Non-commercial use only. Copying or using this code for profit requires prior written permission.');
+  console.log('Contact: https://github.com/anhtuank9 | License: LICENSE');
+}
+
 async function main() {
+  printCopyrightNotice();
   const config = loadConfig();
   const browser = await chromium.launch(browserLaunchOptions(config));
   const context = await browser.newContext({ viewport: { width: 1440, height: config.viewportHeight } });
