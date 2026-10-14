@@ -69,8 +69,8 @@ async function finishDeferredSecondaryActivity(scope, checkLimit, kind) {
   const checks = scope.locator('[id^="Limited_Check"]');
   const resets = scope.locator('[id^="Limited_Reset"]');
   const shows = scope.locator('.addon_Limited_Show_Answers .limited-show-answers-button');
-  if (await checks.count() !== 2 || await resets.count() < 2 || await shows.count() !== 2) {
-    throw new Error('Expected two limited Check and Show Answers controls for the deferred activity');
+  if (await checks.count() < 2 || await resets.count() < 2 || await shows.count() < 2) {
+    throw new Error('Expected at least two limited Check and Show Answers controls for the deferred activity');
   }
   const check = checks.nth(1);
   const checkBox = await check.boundingBox();
@@ -794,7 +794,7 @@ async function solveCurrentPage(page, checkLimit) {
     try { plan.connections = await captureConnections(scope); }
     catch (error) {
       if (/Found 0\/\d+ answer lines/.test(error.message) && plan.fields.length > 0 &&
-          await scope.locator('[id^="Limited_Check"]').count() === 2) {
+          await scope.locator('[id^="Limited_Check"]').count() >= 2) {
         deferredConnections = true;
       } else {
         const canvas = scope.locator('.addon_Connection:visible canvas.connections').first();
@@ -839,7 +839,7 @@ async function solveCurrentPage(page, checkLimit) {
   await fillAnswerPlan(scope, plan);
   const deferredColoring = plan.coloring.length === 0 &&
     await scope.locator('.addon_Text_Coloring .text-coloring-selectable-word').count() > 0 &&
-    await scope.locator('[id^="Limited_Check"]').count() === 2;
+    await scope.locator('[id^="Limited_Check"]').count() >= 2;
   if (deferredColoring || deferredConnections) {
     await clickCheck(scope.locator('[id^="Limited_Check"]').first());
     const kind = deferredConnections ? 'connections' : 'coloring';
