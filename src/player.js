@@ -177,6 +177,7 @@ async function captureOverlay(scope) {
     })).filter(marker => marker.text || marker.choiceIndex >= 0);
     const fields = visibleFields.map(element => ({
       value: element.isContentEditable ? element.innerText : element.value,
+      className: String(element.className || ''),
       ...center(element),
     }));
     const choices = visibleChoices.map(element => ({
@@ -187,7 +188,9 @@ async function captureOverlay(scope) {
     const coloring = [...document.querySelectorAll('.addon_Text_Coloring .text-coloring-selectable-word')]
       .filter(element => visible(element) && /text-coloring-show-answers-/.test(element.className))
       .map(element => ({ addonId: element.closest('.addon_Text_Coloring')?.id || '',
-        wordIndex: element.getAttribute('data-word-index'), text: element.textContent?.trim() || '' }));
+        wordIndex: element.getAttribute('data-word-index'),
+        color: String(element.className).match(/text-coloring-show-answers-([a-z]+)/)?.[1] || '',
+        text: element.textContent?.trim() || '' }));
     const tableRadio = [...document.querySelectorAll('tr:has(> td.tf_radio_image)')]
       .filter(visible).flatMap((row, rowIndex) =>
         [...row.querySelectorAll(':scope > td.tf_radio_image')]
@@ -289,10 +292,19 @@ function buildAnswerPlan(before, overlay) {
   const fields = [];
   const usedMarkers = new Set();
   for (const field of before.fields) {
+    const revealedField = overlay.fields[field.index];
+    if (revealedField && /correct-answer/i.test(revealedField.className) &&
+        (revealedField.value || field.tag !== 'select')) {
+      fields.push({ index: field.index, tag: field.tag, answer: revealedField.value,
+        options: field.options });
+      continue;
+    }
     const candidates = overlay.markers.map((marker, index) => {
       const distance = marker.fieldIndex === field.index ? -1 : Math.hypot(marker.x - field.x, marker.y - field.y);
       return { marker, index, distance };
-    }).filter(item => item.marker.text && item.distance < 150 && !usedMarkers.has(item.index));
+    }).filter(item => item.marker.text && item.distance < 150 &&
+      (item.marker.fieldIndex < 0 || item.marker.fieldIndex === field.index) &&
+      !usedMarkers.has(item.index));
     candidates.sort((a, b) => a.distance - b.distance);
     const selected = candidates[0];
     let answer = selected?.marker.text || '';
@@ -476,10 +488,22 @@ async function fillAnswerPlan(scope, plan) {
     if (normalized(actual) !== normalized(drop.answer)) throw new Error(`Drop target ${drop.id} contains ${actual || '(empty)'} after dragging ${drop.answer}`);
   }
   for (const word of plan.coloring) {
-    if (!/^[A-Za-z0-9_-]+$/.test(word.addonId) || !/^\d+$/.test(word.wordIndex)) {
+    if (!/^[A-Za-z0-9_-]+$/.test(word.addonId) || !/^\d+$/.test(word.wordIndex) ||
+        !/^[a-z]+$/.test(word.color)) {
       throw new Error(`Unexpected text coloring target: ${JSON.stringify(word)}`);
     }
-    await scope.locator(`[id="${word.addonId}"] .text-coloring-selectable-word[data-word-index="${word.wordIndex}"]`).click();
+    const addon = scope.locator(`[id="${word.addonId}"]`);
+    const button = addon.locator(`.text-coloring-color-button[data-colorid="${word.color}"]`);
+    if (!await button.evaluate(element => element.classList.contains('text-coloring-active-button'))) {
+      await button.click();
+    }
+    const target = addon.locator(`.text-coloring-selectable-word[data-word-index="${word.wordIndex}"]`);
+    if (!await target.evaluate((element, color) => element.classList.contains(`text-coloring-colored-with-${color}`), word.color)) {
+      await target.click();
+    }
+    if (!await target.evaluate((element, color) => element.classList.contains(`text-coloring-colored-with-${color}`), word.color)) {
+      throw new Error(`Text coloring did not apply ${word.color} to word ${word.wordIndex}`);
+    }
   }
   for (const pair of plan.connections) {
     const source = scope.locator(`[id="${pair.from}"]`);
@@ -732,6 +756,11 @@ async function solveCurrentPage(page, checkLimit) {
     throw new Error('Answers were shown, but no supported answer markers could be mapped to controls');
   }
   if (plan.fields.length !== before.fields.length) {
+    const file = path.join(process.cwd(), 'diagnostics', `missing-fields-${Date.now()}.json`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ before, overlay, plan,
+      shownHtml: trace?.shownHtml || '', currentHtml: await scope.evaluate(() => document.body.innerHTML) }, null, 2));
+    console.error(`Missing field answers saved: ${file}`);
     throw new Error(`Mapped ${plan.fields.length}/${before.fields.length} text or dropdown answers`);
   }
   if (plan.drops.length !== before.drops.length) {

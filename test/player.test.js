@@ -190,6 +190,65 @@ test('fills a revealed true-false checkbox table', async () => {
   }
 });
 
+test('uses each revealed color when marking pronunciation words', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <div class="addon_Text_Coloring" id="Text_Coloring2">
+          <div class="text-coloring-color-button text-coloring-active-button" data-colorid="red">weak</div>
+          <div class="text-coloring-color-button" data-colorid="blue">strong</div>
+          <span class="text-coloring-selectable-word" data-word-index="1">Have</span>
+          <span class="text-coloring-selectable-word" data-word-index="2">has</span>
+        </div>
+        <button class="ic_button_limited_check" id="check">Check</button>
+        <button class="ic_button_reset" id="reset">Reset</button>
+        <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
+      </main>
+      <script>
+        let count = 0;
+        const addon = document.querySelector('#Text_Coloring2');
+        addon.querySelectorAll('[data-colorid]').forEach(button => button.onclick = () => {
+          addon.querySelector('.text-coloring-active-button').classList.remove('text-coloring-active-button');
+          button.classList.add('text-coloring-active-button');
+        });
+        addon.querySelectorAll('[data-word-index]').forEach(word => word.onclick = () => {
+          const color = addon.querySelector('.text-coloring-active-button').dataset.colorid;
+          word.className = 'text-coloring-selectable-word text-coloring-colored-with-' + color;
+        });
+        document.querySelector('#check').onclick = event => {
+          if (event.target.className === 'ic_button_limited_check') {
+            count++;
+            event.target.className = 'ic_button_limited_uncheck';
+            if (count === 5) document.querySelector('#show').hidden = false;
+          } else event.target.className = 'ic_button_limited_check';
+        };
+        document.querySelector('#reset').onclick = () => {
+          document.querySelector('#check').className = 'ic_button_limited_check';
+          for (const word of addon.querySelectorAll('[data-word-index]')) word.className = 'text-coloring-selectable-word';
+        };
+        document.querySelector('#show').onclick = event => {
+          const reveal = event.target.className === 'limited-show-answers-button';
+          const words = addon.querySelectorAll('[data-word-index]');
+          words[0].className = reveal ? 'text-coloring-selectable-word text-coloring-show-answers-red' : 'text-coloring-selectable-word';
+          words[1].className = reveal ? 'text-coloring-selectable-word text-coloring-show-answers-blue' : 'text-coloring-selectable-word';
+          event.target.className = reveal ? 'limited-hide-answers-button' : 'limited-show-answers-button';
+        };
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.deepEqual(result.plan.coloring.map(word => word.color), ['red', 'blue']);
+    assert.deepEqual(await page.locator('[data-word-index]').evaluateAll(words => words.map(word =>
+      word.classList.contains('text-coloring-colored-with-red') ? 'red' :
+        word.classList.contains('text-coloring-colored-with-blue') ? 'blue' : 'none')),
+    ['red', 'blue']);
+    assert.equal(await page.evaluate(() => count), 6);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('avoids duplicating a fixed first letter in an edit gap', async () => {
   const browser = await launchTestBrowser();
   try {
