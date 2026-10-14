@@ -119,6 +119,7 @@ async function runMyContentSolve(page, config) {
     for (const title of lessons) {
       seen++;
       if (seen < config.myContentStartAt) continue;
+      if (config.myContentOrdinals && !config.myContentOrdinals.includes(seen)) continue;
       if (visited >= config.maxMyContentLessons) {
         console.log(`Stopped at PEARSON_MAX_MY_CONTENT_LESSONS=${config.maxMyContentLessons}.`);
         return { courses: courses.length, visited, completed, alreadyComplete, failures };

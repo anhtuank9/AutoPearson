@@ -25,6 +25,7 @@ const CONFIG_KEYS = [
   'PEARSON_COURSE_FILTER',
   'PEARSON_MAX_MY_CONTENT_LESSONS',
   'PEARSON_MY_CONTENT_START_AT',
+  'PEARSON_MY_CONTENT_ORDINALS',
 ];
 
 function withEnvironment(overrides, callback) {
@@ -87,6 +88,15 @@ test('rejects invalid loop limits', () => {
     PEARSON_PASSWORD: '',
     PEARSON_MAX_PAGES: '0',
   }, () => assert.throws(loadConfig, /PEARSON_MAX_PAGES must be a positive integer/));
+});
+
+test('selects exact My Content lesson ordinals for one login session', () => {
+  withEnvironment({ PEARSON_MY_CONTENT_ORDINALS: '205, 125,205' }, () => {
+    assert.deepEqual(loadConfig().myContentOrdinals, [125, 205]);
+  });
+  withEnvironment({ PEARSON_MY_CONTENT_ORDINALS: '0,125' }, () => {
+    assert.throws(loadConfig, /PEARSON_MY_CONTENT_ORDINALS/);
+  });
 });
 
 test('launches bundled Chromium without a channel', () => {

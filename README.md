@@ -104,6 +104,8 @@ Chạy `npm run my-content` để liệt kê khóa học. Đặt `PEARSON_COURSE
 
 Nếu một lần chạy bị gián đoạn, `PEARSON_MY_CONTENT_START_AT` cho phép bắt đầu từ số thứ tự lesson trong nhật ký của cùng danh sách khóa học. Ví dụ `PEARSON_MY_CONTENT_START_AT=18` bỏ qua 17 lesson đầu; đặt lại `1` để quét toàn bộ. Chỉ dùng điểm tiếp tục khi danh sách khóa học và bộ lọc không đổi.
 
+Để chạy lại nhiều lesson lỗi trong một phiên đăng nhập, đặt `PEARSON_MY_CONTENT_ORDINALS` thành danh sách số thứ tự, ví dụ `86,125,205`. Số thứ tự được ghi trong nhật ký `My Content lesson N`; giữ nguyên bộ lọc khóa học khi chạy lại.
+
 Ví dụ trong terminal Codespaces:
 
 ```bash
@@ -130,6 +132,7 @@ PEARSON_COURSE_FILTER='*' npm run my-content:solve
 | `PEARSON_COURSE_FILTER` | trống | Xem lesson của khóa My Content có tên khớp; `*` là tất cả khóa học |
 | `PEARSON_MAX_MY_CONTENT_LESSONS` | `500` | Giới hạn lesson duyệt trong một lần chạy `my-content:solve` |
 | `PEARSON_MY_CONTENT_START_AT` | `1` | Bắt đầu từ số thứ tự lesson này trong phạm vi lọc |
+| `PEARSON_MY_CONTENT_ORDINALS` | trống | Chỉ xử lý các số thứ tự lesson liệt kê bằng dấu phẩy trong một phiên đăng nhập |
 | `PEARSON_VIEWPORT_HEIGHT` | `900` | Chiều cao cửa sổ trình duyệt |
 | `PEARSON_TRACE_ANSWERS` | `0` | Ghi trace chi tiết khi đặt thành `1` |
 

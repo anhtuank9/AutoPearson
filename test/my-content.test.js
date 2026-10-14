@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { chromium } = require('playwright');
-const { runMyContent } = require('../src/my-content');
+const { runMyContent, runMyContentSolve } = require('../src/my-content');
 
 test('previews a selected My Content course without opening or checking a lesson', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -91,6 +91,31 @@ test('previews a course from the list layout without opening a lesson', async ()
     assert.deepEqual(navigations, [
       '/courses/list/type/all', '/courses/list/type/all', '/courses/123/next/list',
     ]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('skips unselected My Content lesson ordinals without opening them', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.route('https://englishconnect.pearson.com/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname === '/courses/list/type/all') {
+        return route.fulfill({ body: '<a class="card-link" href="/courses/123/next/list">Course One</a>' });
+      }
+      return route.fulfill({ body: `<button>TABLE OF CONTENTS</button><button>expand_more</button>
+        <div class="resource-card__title-wrapper"><a onclick="window.lessonOpened=true">Lesson One</a></div>
+        <div class="resource-card__title-wrapper"><a onclick="window.lessonOpened=true">Lesson Two</a></div>
+        <script>document.querySelector('button:nth-child(2)').onclick=event=>event.target.textContent='expand_less'</script>` });
+    });
+    const result = await runMyContentSolve(page, {
+      courseFilter: '*', lessonFilter: '', myContentStartAt: 1,
+      myContentOrdinals: [3], maxMyContentLessons: 500,
+    });
+    assert.deepEqual(result, { courses: 1, visited: 0, completed: 0, alreadyComplete: 0, failures: [] });
+    assert.equal(await page.evaluate(() => window.lessonOpened || false), false);
   } finally {
     await browser.close();
   }

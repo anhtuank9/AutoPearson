@@ -32,6 +32,19 @@ function booleanValue(name, fallback) {
   throw new Error(`${name} must be 1/0, true/false, or yes/no`);
 }
 
+function lessonOrdinals() {
+  const raw = (process.env.PEARSON_MY_CONTENT_ORDINALS || '').trim();
+  if (!raw) return null;
+  if (!/^\d+(?:\s*,\s*\d+)*$/.test(raw)) {
+    throw new Error('PEARSON_MY_CONTENT_ORDINALS must be comma-separated positive integers');
+  }
+  const values = [...new Set(raw.split(',').map(value => Number(value.trim())))].sort((a, b) => a - b);
+  if (values.some(value => !Number.isSafeInteger(value) || value < 1)) {
+    throw new Error('PEARSON_MY_CONTENT_ORDINALS must be comma-separated positive integers');
+  }
+  return values;
+}
+
 function loadConfig() {
   const root = path.resolve(__dirname, '..');
   readEnvFile(path.join(root, '.env'));
@@ -72,6 +85,7 @@ function loadConfig() {
     maxAssignments: positiveInt('PEARSON_MAX_ASSIGNMENTS', 100),
     maxMyContentLessons: positiveInt('PEARSON_MAX_MY_CONTENT_LESSONS', 500),
     myContentStartAt: positiveInt('PEARSON_MY_CONTENT_START_AT', 1),
+    myContentOrdinals: lessonOrdinals(),
     maxPages: positiveInt('PEARSON_MAX_PAGES', 300),
     checkLimit: positiveInt('PEARSON_CHECK_LIMIT', 5),
     assignmentFilter: (process.env.PEARSON_ASSIGNMENT_FILTER || '').trim().toLocaleLowerCase(),
