@@ -83,14 +83,20 @@ async function openLesson(page, course, title) {
   await lesson().click();
   await page.waitForURL(url => /^\/lesson\/view\/\d+\//.test(url.pathname), { timeout: 30_000 });
   await page.locator('#content-iframe').waitFor({ state: 'attached', timeout: 30_000 });
-  for (let attempt = 0; attempt < 120; attempt++) {
-    if (page.frames().some(frame => /pearsonspeakout\.speechace\.co/.test(frame.url()))) {
-      throw new Error('Interactive Speaking Practice uses an external microphone activity without Check');
+  for (let loadAttempt = 0; loadAttempt < 2; loadAttempt++) {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      if (page.frames().some(frame => /pearsonspeakout\.speechace\.co/.test(frame.url()))) {
+        throw new Error('Interactive Speaking Practice uses an external microphone activity without Check');
+      }
+      const scope = await playerScope(page);
+      const text = await scope.locator('body').innerText().catch(() => '');
+      if (/Overview|Lesson Page|Reference|Result\s*\|/i.test(text) && text.length > 40) return text;
+      await page.waitForTimeout(500);
     }
-    const scope = await playerScope(page);
-    const text = await scope.locator('body').innerText().catch(() => '');
-    if (/Overview|Lesson Page|Reference|Result\s*\|/i.test(text) && text.length > 40) return text;
-    await page.waitForTimeout(500);
+    if (loadAttempt === 0) {
+      console.log(`Lesson player stayed empty; reloading ${title} once.`);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+    }
   }
   throw new Error(`Lesson player did not load: ${title}`);
 }
