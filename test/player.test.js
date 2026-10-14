@@ -249,6 +249,73 @@ test('uses each revealed color when marking pronunciation words', async () => {
   }
 });
 
+test('completes a coloring activity unlocked after a text activity on the same page', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <input id="gap" type="edit" style="width:100px;height:30px">
+        <div id="Limited_Check1" class="ic_button_limited_check" role="button" style="width:40px;height:40px">Check 1</div>
+        <div id="Limited_Reset1" class="ic_button_limited_reset" role="button" style="width:40px;height:40px">Reset 1</div>
+        <div class="addon_Limited_Show_Answers" id="Limited_Show_Answers1" style="display:none">
+          <div class="limited-show-answers-wrapper"><div class="limited-show-answers-button" style="width:40px;height:40px">Show 1</div></div>
+        </div>
+        <div id="Limited_Check2" class="ic_button_limited_check" role="button" style="width:40px;height:40px">Check 2</div>
+        <div id="Limited_Reset2" class="ic_button_limited_reset" role="button" style="width:40px;height:40px">Reset 2</div>
+        <div class="addon_Limited_Show_Answers" id="Limited_Show_Answers2" style="display:none">
+          <div class="limited-show-answers-wrapper"><div class="limited-show-answers-button" style="width:40px;height:40px">Show 2</div></div>
+        </div>
+        <div class="addon_Text_Coloring" id="Text_Coloring1" style="display:none">
+          <div class="text-coloring-color-button text-coloring-active-button" data-colorid="blue">blue</div>
+          <span class="text-coloring-selectable-word" data-word-index="1">if it’s</span>
+        </div>
+      </main>
+      <script>
+        let firstChecks = 0;
+        let secondChecks = 0;
+        const gap = document.querySelector('#gap');
+        const word = document.querySelector('.text-coloring-selectable-word');
+        const first = document.querySelector('#Limited_Check1');
+        const second = document.querySelector('#Limited_Check2');
+        first.addEventListener('click', () => {
+          firstChecks++;
+          if (firstChecks >= 5) document.querySelector('#Limited_Show_Answers1').style.display = 'block';
+          if (gap.value === 'if it is') document.querySelector('#Text_Coloring1').style.display = 'block';
+        });
+        second.addEventListener('click', () => {
+          secondChecks++;
+          if (secondChecks >= 5) document.querySelector('#Limited_Show_Answers2').style.display = 'block';
+        });
+        document.querySelector('#Limited_Reset1').addEventListener('click', () => {});
+        document.querySelector('#Limited_Reset2').addEventListener('click', () => {});
+        document.querySelector('#Limited_Show_Answers1 .limited-show-answers-button').addEventListener('click', event => {
+          const wrapper = event.target.closest('.limited-show-answers-wrapper');
+          wrapper.classList.toggle('selected');
+          gap.className = wrapper.classList.contains('selected') ? 'ic_gap-correct-answer' : '';
+          gap.value = wrapper.classList.contains('selected') ? 'if it is' : '';
+        });
+        document.querySelector('#Limited_Show_Answers2 .limited-show-answers-button').addEventListener('click', event => {
+          const wrapper = event.target.closest('.limited-show-answers-wrapper');
+          wrapper.classList.toggle('selected');
+          word.className = wrapper.classList.contains('selected')
+            ? 'text-coloring-selectable-word text-coloring-show-answers-blue'
+            : 'text-coloring-selectable-word';
+        });
+        word.addEventListener('click', () => word.classList.add('text-coloring-colored-with-blue'));
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.equal(result.status, 'answered');
+    assert.equal(await page.locator('#gap').inputValue(), 'if it is');
+    assert.equal(await page.locator('.text-coloring-selectable-word').getAttribute('class'),
+      'text-coloring-selectable-word text-coloring-colored-with-blue');
+    assert.equal(await page.evaluate(() => secondChecks), 6);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('avoids duplicating a fixed first letter in an edit gap', async () => {
   const browser = await launchTestBrowser();
   try {
@@ -331,6 +398,48 @@ test('maps revealed words to drag targets and checks the completed exercise', as
     assert.equal(result.plan.drops.length, 3);
     assert.deepEqual(await page.locator('[id*="gap-"]').evaluateAll(elements => elements.map(el => el.textContent)), ['isn’t very', 'going', 'example']);
     assert.equal(await page.evaluate(() => count), 6);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('fills Pearson draggable-gap targets from the revealed answer', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <div class="ic_sourceListItem ui-draggable" draggable="true">hope</div>
+        <span id="Table1-1" class="draggable-gap ic_gap" style="display:inline-block;width:100px;height:30px;border:1px solid"></span>
+        <button class="ic_button_check" id="check">Check</button>
+        <button class="ic_button_reset" id="reset">Reset</button>
+        <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
+      </main>
+      <script>
+        let count = 0;
+        const gap = document.querySelector('#Table1-1');
+        document.querySelector('#check').addEventListener('click', () => {
+          if (++count === 5) document.querySelector('#show').hidden = false;
+        });
+        document.querySelector('#show').addEventListener('click', event => {
+          const shown = event.target.className === 'limited-show-answers-button';
+          gap.className = shown ? 'draggable-gap ic_gap ic_gap-show-answers' : 'draggable-gap ic_gap';
+          gap.textContent = shown ? 'hope' : '';
+          event.target.className = shown ? 'limited-hide-answers-button' : 'limited-show-answers-button';
+        });
+        const source = document.querySelector('.ic_sourceListItem');
+        source.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', source.textContent));
+        gap.addEventListener('dragover', event => event.preventDefault());
+        gap.addEventListener('drop', event => {
+          event.preventDefault();
+          gap.textContent = event.dataTransfer.getData('text/plain');
+        });
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.equal(result.status, 'answered');
+    assert.deepEqual(result.plan.drops, [{ id: 'Table1-1', answer: 'hope' }]);
+    assert.equal(await page.locator('#Table1-1').innerText(), 'hope');
   } finally {
     await browser.close();
   }

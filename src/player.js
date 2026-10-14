@@ -65,6 +65,43 @@ async function clickAllChecks(scope) {
   throw new Error('More than 30 Check controls appeared on one page');
 }
 
+async function finishDeferredColoring(scope, checkLimit) {
+  const checks = scope.locator('[id^="Limited_Check"]');
+  const resets = scope.locator('[id^="Limited_Reset"]');
+  const shows = scope.locator('.addon_Limited_Show_Answers .limited-show-answers-button');
+  if (await checks.count() !== 2 || await resets.count() !== 2 || await shows.count() !== 2) {
+    throw new Error('Expected two Check, Reset, and Show Answers controls for the deferred coloring activity');
+  }
+  const check = checks.nth(1);
+  const reset = resets.nth(1);
+  const show = shows.nth(1);
+  await clickReset(scope, reset);
+  for (let attempt = 0; attempt < checkLimit; attempt++) {
+    if (!await check.evaluate(element => element.classList.contains('ic_button_limited_check'))) {
+      await clickReset(scope, reset);
+    }
+    await clickCheck(check);
+    await clickReset(scope, reset);
+  }
+  if (!await show.evaluate(element => element.closest('.limited-show-answers-wrapper')?.classList.contains('selected'))) {
+    await show.click({ force: true });
+  }
+  const overlay = await captureOverlay(scope);
+  if (!overlay.coloring.length) {
+    const file = path.join(process.cwd(), 'diagnostics', `deferred-coloring-${Date.now()}.html`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, await scope.evaluate(() => document.body.innerHTML));
+    throw new Error(`No revealed coloring answers in the second activity; ${file}`);
+  }
+  await show.click({ force: true });
+  await clickReset(scope, reset);
+  const emptyPlan = { fields: [], choices: [], options: [], drops: [], tableRadio: [],
+    tableCheckbox: [], ordering: [], multigap: [], connections: [], coloring: overlay.coloring };
+  await fillAnswerPlan(scope, emptyPlan);
+  await clickCheck(check);
+  return overlay.coloring;
+}
+
 async function resetControl(scope) {
   return await firstVisible(scope, '.ic_button_reset:not(.disabled):visible') ||
     await firstVisible(scope, RESET);
@@ -135,7 +172,7 @@ async function captureFields(scope) {
       checked: !!element.checked || element.getAttribute('aria-checked') === 'true',
       ...box(element),
     }));
-    const drops = [...document.querySelectorAll('.ic_draggableGapEmpty, .ic_draggableGapFilled')]
+    const drops = [...document.querySelectorAll('.ic_draggableGapEmpty, .ic_draggableGapFilled, .draggable-gap.ic_gap')]
       .filter(visible).map((element, index) => ({ index, id: element.id,
         text: (element.innerText || '').trim(), ...box(element) }));
     return { fields, choices, drops };
@@ -335,7 +372,9 @@ function buildAnswerPlan(before, overlay) {
   for (const drop of before.drops) {
     const candidates = overlay.markers.map((marker, index) => ({ marker, index,
       distance: Math.hypot(marker.x - drop.x, marker.y - drop.y),
-    })).filter(item => /draggableGapFilled-correct-answer/.test(item.marker.className) &&
+    })).filter(item =>
+      (/draggableGapFilled-correct-answer/.test(item.marker.className) ||
+        (/ic_gap-show-answers/.test(item.marker.className) && item.marker.id === drop.id)) &&
       item.marker.text && item.distance < 100 && !usedDropMarkers.has(item.index));
     candidates.sort((a, b) => a.distance - b.distance);
     if (candidates[0]) {
@@ -776,7 +815,16 @@ async function solveCurrentPage(page, checkLimit) {
     throw new Error('This exercise type needs an answer adapter; no answers were mapped');
   }
   await fillAnswerPlan(scope, plan);
-  await clickAllChecks(scope);
+  const deferredColoring = plan.coloring.length === 0 &&
+    await scope.locator('.addon_Text_Coloring .text-coloring-selectable-word').count() > 0 &&
+    await scope.locator('[id^="Limited_Check"]').count() === 2;
+  if (deferredColoring) {
+    await clickCheck(scope.locator('[id^="Limited_Check"]').first());
+    const revealedColoring = await finishDeferredColoring(scope, checkLimit);
+    plan.coloring.push(...revealedColoring);
+  } else {
+    await clickAllChecks(scope);
+  }
   const wrongFieldIndices = await scope.evaluate(fieldSelector => {
     const visible = element => {
       const box = element.getBoundingClientRect();
