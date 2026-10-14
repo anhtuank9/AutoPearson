@@ -123,6 +123,12 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
               marker.className = 'ic_inlineChoice-correct-answer';
               marker.textContent = answer;
               document.querySelectorAll('select.ic_inlineChoice')[index].after(marker);
+              if (index === 0) {
+                const unrelated = document.createElement('span');
+                unrelated.className = 'ic_inlineChoice-correct-answer';
+                unrelated.textContent = 'creative activities';
+                marker.before(unrelated);
+              }
             });
             event.target.className = 'limited-hide-answers-button';
           } else {
@@ -506,6 +512,45 @@ test('fills Pearson draggable-gap targets from the revealed answer', async () =>
     assert.equal(result.status, 'answered');
     assert.deepEqual(result.plan.drops, [{ id: 'Table1-1', answer: 'hope' }]);
     assert.equal(await page.locator('#Table1-1').innerText(), 'hope');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('matches a draggable phrase split across a visual line break', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="ic_sourceListItem ui-draggable" draggable="true">How about y<br>ou?</div>
+      <span id="Table2-1" class="draggable-gap ic_gap" style="display:inline-block;width:150px;height:30px"></span>
+      <button class="ic_button_check" id="check">Check</button>
+      <button class="ic_button_reset" id="reset">Reset</button>
+      <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
+      <script>
+        let count = 0;
+        const gap = document.querySelector('#Table2-1');
+        document.querySelector('#check').onclick = () => {
+          if (++count === 5) document.querySelector('#show').hidden = false;
+        };
+        document.querySelector('#show').onclick = event => {
+          const shown = event.target.className === 'limited-show-answers-button';
+          gap.className = shown ? 'draggable-gap ic_gap ic_gap-show-answers' : 'draggable-gap ic_gap';
+          gap.textContent = shown ? 'How about you' : '';
+          event.target.className = shown ? 'limited-hide-answers-button' : 'limited-show-answers-button';
+        };
+        const source = document.querySelector('.ic_sourceListItem');
+        source.ondragstart = event => event.dataTransfer.setData('text/plain', source.innerText);
+        gap.ondragover = event => event.preventDefault();
+        gap.ondrop = event => {
+          event.preventDefault();
+          gap.textContent = event.dataTransfer.getData('text/plain');
+        };
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.equal(result.status, 'answered');
+    assert.match(await page.locator('#Table2-1').innerText(), /How about y\s*ou\?/);
   } finally {
     await browser.close();
   }

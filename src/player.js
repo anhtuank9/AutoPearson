@@ -29,6 +29,31 @@ function normalizeAnswerText(value) {
     .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
 }
 
+function compactAnswerText(value) {
+  return normalizeAnswerText(value).replace(/[^\p{L}\p{N}]/gu, '');
+}
+
+function sameAnswerText(actual, expected) {
+  return normalizeAnswerText(actual) === normalizeAnswerText(expected) ||
+    (!!compactAnswerText(expected) && compactAnswerText(actual) === compactAnswerText(expected));
+}
+
+async function findDraggableSource(scope, answer) {
+  const sources = scope.locator('.ic_sourceListItem.ui-draggable');
+  const exact = [];
+  const compact = [];
+  const expected = normalizeAnswerText(answer);
+  const compactExpected = compactAnswerText(answer);
+  for (let i = 0; i < await sources.count(); i++) {
+    const candidate = sources.nth(i);
+    if (!await candidate.isVisible()) continue;
+    const actual = normalizeAnswerText(await candidate.innerText());
+    if (actual === expected) exact.push(candidate);
+    else if (compactExpected && compactAnswerText(actual) === compactExpected) compact.push(candidate);
+  }
+  return exact[0] || (compact.length === 1 ? compact[0] : null);
+}
+
 async function firstVisible(scope, selector) {
   const items = scope.locator(selector);
   const count = await items.count();
@@ -367,6 +392,8 @@ function buildAnswerPlan(before, overlay) {
       return { marker, index, distance };
     }).filter(item => item.marker.text && item.distance < 150 &&
       (item.marker.fieldIndex < 0 || item.marker.fieldIndex === field.index) &&
+      (field.tag !== 'select' || field.options.some(option =>
+        normalizeAnswerText(option.text) === normalizeAnswerText(item.marker.text))) &&
       !usedMarkers.has(item.index));
     candidates.sort((a, b) => a.distance - b.distance);
     const selected = candidates[0];
@@ -510,16 +537,7 @@ async function fillAnswerPlan(scope, plan) {
   for (const drop of plan.drops) {
     if (drop.preserve) continue;
     if (!/^[A-Za-z0-9_-]+$/.test(drop.id)) throw new Error(`Unexpected drop target ID: ${drop.id}`);
-    const normalized = normalizeAnswerText;
-    const sources = scope.locator('.ic_sourceListItem.ui-draggable');
-    let source = null;
-    for (let i = 0; i < await sources.count(); i++) {
-      const candidate = sources.nth(i);
-      if (normalized(await candidate.innerText()) === normalized(drop.answer) && await candidate.isVisible()) {
-        source = candidate;
-        break;
-      }
-    }
+    let source = await findDraggableSource(scope, drop.answer);
     if (!source) throw new Error(`Missing draggable answer: ${drop.answer}`);
     const target = scope.locator(`[id="${drop.id}"]`);
     const readTarget = async () => (await target.innerText()).trim();
@@ -528,22 +546,15 @@ async function fillAnswerPlan(scope, plan) {
     await source.click();
     await target.click();
     let actual = await readTarget();
-    if (normalized(actual) !== normalized(drop.answer)) {
-      source = null;
-      for (let i = 0; i < await sources.count(); i++) {
-        const candidate = sources.nth(i);
-        if (normalized(await candidate.innerText()) === normalized(drop.answer) && await candidate.isVisible()) {
-          source = candidate;
-          break;
-        }
-      }
+    if (!sameAnswerText(actual, drop.answer)) {
+      source = await findDraggableSource(scope, drop.answer);
       if (!source) throw new Error(`Missing draggable answer after click attempt: ${drop.answer}`);
       await source.scrollIntoViewIfNeeded();
       await target.scrollIntoViewIfNeeded();
       await source.dragTo(target);
       actual = await readTarget();
     }
-    if (normalized(actual) !== normalized(drop.answer) && source) {
+    if (!sameAnswerText(actual, drop.answer) && source) {
       const sourceBox = await source.boundingBox();
       const targetBox = await target.boundingBox();
       if (sourceBox && targetBox) {
@@ -555,7 +566,7 @@ async function fillAnswerPlan(scope, plan) {
         actual = await readTarget();
       }
     }
-    if (normalized(actual) !== normalized(drop.answer)) throw new Error(`Drop target ${drop.id} contains ${actual || '(empty)'} after dragging ${drop.answer}`);
+    if (!sameAnswerText(actual, drop.answer)) throw new Error(`Drop target ${drop.id} contains ${actual || '(empty)'} after dragging ${drop.answer}`);
   }
   for (const word of plan.coloring) {
     if (!/^[A-Za-z0-9_-]+$/.test(word.addonId) || !/^\d+$/.test(word.wordIndex) ||
