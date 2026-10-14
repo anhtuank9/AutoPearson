@@ -89,7 +89,7 @@ async function openLesson(page, course, title) {
     }
     const scope = await playerScope(page);
     const text = await scope.locator('body').innerText().catch(() => '');
-    if (/Overview|Result\s*\|/i.test(text) && text.length > 80) return text;
+    if (/Overview|Lesson Page|Result\s*\|/i.test(text) && text.length > 40) return text;
     await page.waitForTimeout(500);
   }
   throw new Error(`Lesson player did not load: ${title}`);

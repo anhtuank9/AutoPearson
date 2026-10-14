@@ -65,15 +65,26 @@ async function clickAllChecks(scope) {
   throw new Error('More than 30 Check controls appeared on one page');
 }
 
-async function finishDeferredColoring(scope, checkLimit) {
+async function finishDeferredSecondaryActivity(scope, checkLimit, kind) {
   const checks = scope.locator('[id^="Limited_Check"]');
   const resets = scope.locator('[id^="Limited_Reset"]');
   const shows = scope.locator('.addon_Limited_Show_Answers .limited-show-answers-button');
-  if (await checks.count() !== 2 || await resets.count() !== 2 || await shows.count() !== 2) {
-    throw new Error('Expected two Check, Reset, and Show Answers controls for the deferred coloring activity');
+  if (await checks.count() !== 2 || await resets.count() < 2 || await shows.count() !== 2) {
+    throw new Error('Expected two limited Check and Show Answers controls for the deferred activity');
   }
   const check = checks.nth(1);
-  const reset = resets.nth(1);
+  const checkBox = await check.boundingBox();
+  if (!checkBox) throw new Error('Second Check control is not visible');
+  let reset = null;
+  let resetDistance = Infinity;
+  for (let i = 0; i < await resets.count(); i++) {
+    const candidate = resets.nth(i);
+    const box = await candidate.boundingBox();
+    if (!box) continue;
+    const distance = Math.hypot(box.x - checkBox.x, box.y - checkBox.y);
+    if (distance < resetDistance) { reset = candidate; resetDistance = distance; }
+  }
+  if (!reset) throw new Error('Second Reset control is not visible');
   const show = shows.nth(1);
   await clickReset(scope, reset);
   for (let attempt = 0; attempt < checkLimit; attempt++) {
@@ -86,20 +97,23 @@ async function finishDeferredColoring(scope, checkLimit) {
   if (!await show.evaluate(element => element.closest('.limited-show-answers-wrapper')?.classList.contains('selected'))) {
     await show.click({ force: true });
   }
-  const overlay = await captureOverlay(scope);
-  if (!overlay.coloring.length) {
-    const file = path.join(process.cwd(), 'diagnostics', `deferred-coloring-${Date.now()}.html`);
+  const answers = kind === 'coloring'
+    ? (await captureOverlay(scope)).coloring
+    : await captureConnections(scope);
+  if (!answers.length) {
+    const file = path.join(process.cwd(), 'diagnostics', `deferred-activity-${Date.now()}.html`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, await scope.evaluate(() => document.body.innerHTML));
-    throw new Error(`No revealed coloring answers in the second activity; ${file}`);
+    throw new Error(`No revealed ${kind} answers in the second activity; ${file}`);
   }
   await show.click({ force: true });
   await clickReset(scope, reset);
   const emptyPlan = { fields: [], choices: [], options: [], drops: [], tableRadio: [],
-    tableCheckbox: [], ordering: [], multigap: [], connections: [], coloring: overlay.coloring };
+    tableCheckbox: [], ordering: [], multigap: [], connections: kind === 'connections' ? answers : [],
+    coloring: kind === 'coloring' ? answers : [] };
   await fillAnswerPlan(scope, emptyPlan);
   await clickCheck(check);
-  return overlay.coloring;
+  return answers;
 }
 
 async function resetControl(scope) {
@@ -775,14 +789,22 @@ async function solveCurrentPage(page, checkLimit) {
     console.error(`Partial answer overlay saved: ${file}`);
   }
   plan.connections = [];
+  let deferredConnections = false;
   if (await scope.locator('.addon_Connection:visible canvas.connections').count()) {
     try { plan.connections = await captureConnections(scope); }
     catch (error) {
-      const canvas = scope.locator('.addon_Connection:visible canvas.connections').first();
-      const file = path.join(process.cwd(), 'diagnostics', `connections-shown-${Date.now()}.png`);
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      await canvas.screenshot({ path: file, timeout: 5000 }).catch(() => {});
-      throw new Error(`${error.message}; canvas saved to ${file}`);
+      if (/Found 0\/\d+ answer lines/.test(error.message) && plan.fields.length > 0 &&
+          await scope.locator('[id^="Limited_Check"]').count() === 2) {
+        deferredConnections = true;
+      } else {
+        const canvas = scope.locator('.addon_Connection:visible canvas.connections').first();
+        const file = path.join(process.cwd(), 'diagnostics', `connections-shown-${Date.now()}.png`);
+        const htmlFile = path.join(process.cwd(), 'diagnostics', `connections-page-${Date.now()}.html`);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        await canvas.screenshot({ path: file, timeout: 5000 }).catch(() => {});
+        fs.writeFileSync(htmlFile, await scope.evaluate(() => document.body.innerHTML));
+        throw new Error(`${error.message}; canvas saved to ${file}; page saved to ${htmlFile}`);
+      }
     }
   }
   await hideAnswers(scope);
@@ -818,10 +840,12 @@ async function solveCurrentPage(page, checkLimit) {
   const deferredColoring = plan.coloring.length === 0 &&
     await scope.locator('.addon_Text_Coloring .text-coloring-selectable-word').count() > 0 &&
     await scope.locator('[id^="Limited_Check"]').count() === 2;
-  if (deferredColoring) {
+  if (deferredColoring || deferredConnections) {
     await clickCheck(scope.locator('[id^="Limited_Check"]').first());
-    const revealedColoring = await finishDeferredColoring(scope, checkLimit);
-    plan.coloring.push(...revealedColoring);
+    const kind = deferredConnections ? 'connections' : 'coloring';
+    const revealed = await finishDeferredSecondaryActivity(scope, checkLimit, kind);
+    if (deferredConnections) plan.connections.push(...revealed);
+    else plan.coloring.push(...revealed);
   } else {
     await clickAllChecks(scope);
   }
