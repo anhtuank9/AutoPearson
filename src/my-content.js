@@ -89,7 +89,7 @@ async function openLesson(page, course, title) {
     }
     const scope = await playerScope(page);
     const text = await scope.locator('body').innerText().catch(() => '');
-    if (/Overview|Lesson Page|Result\s*\|/i.test(text) && text.length > 40) return text;
+    if (/Overview|Lesson Page|Reference|Result\s*\|/i.test(text) && text.length > 40) return text;
     await page.waitForTimeout(500);
   }
   throw new Error(`Lesson player did not load: ${title}`);
@@ -121,7 +121,7 @@ async function runMyContentSolve(page, config) {
       console.log(`My Content lesson ${seen}: ${course.title} / ${title}`);
       try {
         const overview = await openLesson(page, course, title);
-        if (/\bOverview\s*100%/i.test(overview)) {
+        if (/\b(?:Overview|Reference)\s*100%/i.test(overview)) {
           alreadyComplete++;
           console.log(`Already complete: ${title}`);
           await saveAndExit(page);
