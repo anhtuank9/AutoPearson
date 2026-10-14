@@ -19,11 +19,11 @@ const FIELD_SELECTOR = 'input[type="text"]:not([role="presentation"]):not(.pageN
 const CHOICE_SELECTOR = 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], .ic_choice, .addon_Text_Selection .selectable';
 
 function normalizeAnswerText(value) {
-  return value.replace(/&(?:apos|#0*39|#x0*27);/gi, "'")
+  return value.replace(/&amp;/gi, '&')
+    .replace(/&(?:apos|#0*39|#x0*27);/gi, "'")
     .replace(/&(?:quot|#0*34|#x0*22);/gi, '"')
     .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
     .replace(/&nbsp;|\u00a0/gi, ' ')
-    .replace(/&amp;/gi, '&')
     .replace(/<[^>]*>/g, '')
     .replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
     .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
@@ -627,8 +627,8 @@ async function fillAnswerPlan(scope, plan) {
       return hits >= 5;
     }, pair);
     if (await hasLine()) continue;
-    await sourceIcon.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'center' }));
-    await targetIcon.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'center' }));
+    await sourceIcon.evaluate(element => element.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+    await targetIcon.evaluate(element => element.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
     await source.click({ force: true, timeout: 3000 }).catch(() => {});
     await target.click({ force: true, timeout: 3000 }).catch(() => {});
     await scope.page().waitForTimeout(150);

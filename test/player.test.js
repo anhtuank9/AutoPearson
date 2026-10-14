@@ -95,6 +95,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="playing">playing</option><option value="to play">to play</option></select></p>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="doing">doing</option><option value="do">do</option></select></p>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="wasnt">wasn't</option><option value="was">was</option></select></p>
+        <p><select class="ic_inlineChoice"><option value="-">---</option><option value="final">the final -t is pronounced</option><option value="silent">the final -t is silent</option></select></p>
         <button class="ic_button_check" id="check">Check</button>
         <button class="ic_button_reset" id="reset">Reset</button>
         <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
@@ -118,7 +119,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
         });
         document.querySelector('#show').addEventListener('click', event => {
           if (event.target.className === 'limited-show-answers-button') {
-            ['playing', 'doing', 'wasn&apos;t'].forEach((answer, index) => {
+            ['playing', 'doing', 'wasn&apos;t', 'the final -&lt;i&gt;t&amp;nbsp;&lt;/i&gt;is pronounced'].forEach((answer, index) => {
               const marker = document.createElement('span');
               marker.className = 'ic_inlineChoice-correct-answer';
               marker.textContent = answer;
@@ -140,7 +141,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
     `);
     const result = await solveCurrentPage(page, 5);
     assert.equal(result.status, 'answered');
-    assert.deepEqual(await page.locator('select.ic_inlineChoice').evaluateAll(elements => elements.map(el => el.value)), ['playing', 'doing', 'wasnt']);
+    assert.deepEqual(await page.locator('select.ic_inlineChoice').evaluateAll(elements => elements.map(el => el.value)), ['playing', 'doing', 'wasnt', 'final']);
     assert.equal(await page.locator('.video-playback-rate select').inputValue(), '1');
     assert.equal(await page.evaluate(() => count), 6);
   } finally {
