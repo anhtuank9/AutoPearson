@@ -132,6 +132,8 @@ async function finishDeferredSecondaryActivity(scope, checkLimit, kind, before) 
     ? (await captureOverlay(scope)).coloring
     : kind === 'fields'
       ? buildAnswerPlan(before, await captureOverlay(scope)).fields
+      : kind === 'ordering'
+        ? (await captureOverlay(scope)).ordering
       : await captureConnections(scope);
   if (!answers.length) {
     const file = path.join(process.cwd(), 'diagnostics', `deferred-activity-${Date.now()}.html`);
@@ -142,7 +144,7 @@ async function finishDeferredSecondaryActivity(scope, checkLimit, kind, before) 
   await show.click({ force: true });
   await clickReset(scope, reset);
   const emptyPlan = { fields: kind === 'fields' ? answers : [], choices: [], options: [], drops: [], tableRadio: [],
-    tableCheckbox: [], ordering: [], multigap: [], connections: kind === 'connections' ? answers : [],
+    tableCheckbox: [], ordering: kind === 'ordering' ? answers : [], multigap: [], connections: kind === 'connections' ? answers : [],
     coloring: kind === 'coloring' ? answers : [] };
   await fillAnswerPlan(scope, emptyPlan);
   await clickCheck(check);
@@ -506,8 +508,13 @@ async function fillAnswerPlan(scope, plan) {
       if (current[desired] === order.items[desired]) continue;
       const sourceIndex = current.findIndex((item, index) => index > desired && item === order.items[desired]);
       if (sourceIndex < 0) throw new Error(`Ordering answer not found: ${order.items[desired]}`);
+      const targetBox = await rows.nth(desired).boundingBox();
+      if (!targetBox) throw new Error(`Ordering target ${desired + 1} is not visible`);
       await rows.nth(sourceIndex).dragTo(rows.nth(desired),
-        { targetPosition: { x: 30, y: 2 } });
+        { targetPosition: {
+          x: Math.max(1, Math.min(10, targetBox.width / 2)),
+          y: Math.max(1, Math.min(10, targetBox.height / 4)),
+        }, timeout: 5000 });
       const updated = await rows.evaluateAll(elements => elements.map(row =>
         (row.querySelector('.ic_ordering-item')?.innerText || '').replace(/\s+/g, ' ').trim()));
       if (updated[desired] !== order.items[desired]) {
@@ -863,6 +870,10 @@ async function solveCurrentPage(page, checkLimit) {
   if (plan.drops.length !== before.drops.length) {
     throw new Error(`Mapped ${plan.drops.length}/${before.drops.length} drag answers`);
   }
+  const deferredOrdering = plan.ordering.length > 0 && plan.fields.length > 0 &&
+    await scope.locator('[id^="Limited_Check"]').count() >= 2 &&
+    await scope.locator('.addon_Limited_Show_Answers .limited-show-answers-button').count() >= 2;
+  if (deferredOrdering) plan.ordering = [];
   if (plan.fields.length + plan.choices.length + plan.options.length + plan.drops.length +
     plan.coloring.length + plan.tableRadio.length + plan.tableCheckbox.length + plan.ordering.length +
       plan.multigap.length + plan.connections.length === 0) {
@@ -876,12 +887,14 @@ async function solveCurrentPage(page, checkLimit) {
   const deferredColoring = plan.coloring.length === 0 &&
     await scope.locator('.addon_Text_Coloring .text-coloring-selectable-word').count() > 0 &&
     await scope.locator('[id^="Limited_Check"]').count() >= 2;
-  if (deferredColoring || deferredConnections || deferredFields) {
+  if (deferredColoring || deferredConnections || deferredFields || deferredOrdering) {
     await clickCheck(scope.locator('[id^="Limited_Check"]').first());
-    const kind = deferredConnections ? 'connections' : deferredFields ? 'fields' : 'coloring';
+    const kind = deferredConnections ? 'connections' : deferredFields ? 'fields' :
+      deferredOrdering ? 'ordering' : 'coloring';
     const revealed = await finishDeferredSecondaryActivity(scope, checkLimit, kind, before);
     if (deferredConnections) plan.connections.push(...revealed);
     else if (deferredFields) plan.fields.push(...revealed);
+    else if (deferredOrdering) plan.ordering.push(...revealed);
     else plan.coloring.push(...revealed);
   } else {
     await clickAllChecks(scope);

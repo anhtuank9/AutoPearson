@@ -386,6 +386,76 @@ test('fills fields unlocked after a drag activity on the same page', async () =>
   }
 });
 
+test('solves an ordering activity after a separate dropdown activity', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <select id="first"><option value="-">---</option><option value="after">After that</option></select>
+      <div id="Limited_Check1" class="ic_button_limited_check" style="width:40px;height:40px">Check 1</div>
+      <div id="Limited_Reset1" class="ic_button_limited_reset" style="width:40px;height:40px">Reset 1</div>
+      <div class="addon_Limited_Show_Answers" id="Limited_Show_Answers1" style="display:none">
+        <div class="limited-show-answers-wrapper"><div class="limited-show-answers-button" style="width:40px;height:40px">Show 1</div></div>
+      </div>
+      <table class="ic_ordering" id="Ordering1" style="margin-top:100px"><tbody>
+        <tr draggable="true" data-item="a" style="height:40px"><td><div class="ic_ordering-item">a</div></td></tr>
+        <tr draggable="true" data-item="b" style="height:40px"><td><div class="ic_ordering-item">b</div></td></tr>
+        <tr draggable="true" data-item="c" style="height:40px"><td><div class="ic_ordering-item">c</div></td></tr>
+      </tbody></table>
+      <div id="Limited_Check2" class="ic_button_limited_check" style="width:40px;height:40px">Check 2</div>
+      <div id="Limited_Reset2" class="ic_button_limited_reset" style="width:40px;height:40px">Reset 2</div>
+      <div class="addon_Limited_Show_Answers" id="Limited_Show_Answers2" style="display:none">
+        <div class="limited-show-answers-wrapper"><div class="limited-show-answers-button" style="width:40px;height:40px">Show 2</div></div>
+      </div>
+      <script>
+        let firstChecks = 0, secondChecks = 0;
+        const first = document.querySelector('#first');
+        const tbody = document.querySelector('tbody');
+        const sort = ids => ids.forEach(id => tbody.append(tbody.querySelector('[data-item="' + id + '"]')));
+        document.querySelector('#Limited_Check1').onclick = () => {
+          if (++firstChecks >= 5) document.querySelector('#Limited_Show_Answers1').style.display = 'block';
+        };
+        document.querySelector('#Limited_Check2').onclick = () => {
+          if (++secondChecks >= 5) document.querySelector('#Limited_Show_Answers2').style.display = 'block';
+        };
+        document.querySelector('#Limited_Reset1').onclick = () => {};
+        document.querySelector('#Limited_Reset2').onclick = () => {};
+        document.querySelector('#Limited_Show_Answers1 .limited-show-answers-button').onclick = event => {
+          const wrapper = event.target.closest('.limited-show-answers-wrapper');
+          wrapper.classList.toggle('selected');
+          let marker = document.querySelector('.ic_inlineChoice-correct-answer');
+          if (wrapper.classList.contains('selected')) {
+            marker = document.createElement('span');
+            marker.className = 'ic_inlineChoice-correct-answer';
+            marker.textContent = 'After that';
+            first.after(marker);
+          } else marker?.remove();
+        };
+        document.querySelector('#Limited_Show_Answers2 .limited-show-answers-button').onclick = event => {
+          const wrapper = event.target.closest('.limited-show-answers-wrapper');
+          wrapper.classList.toggle('selected');
+          sort(wrapper.classList.contains('selected') ? ['c','a','b'] : ['a','b','c']);
+        };
+        let dragged;
+        tbody.ondragstart = event => { dragged = event.target.closest('tr'); };
+        tbody.ondragover = event => event.preventDefault();
+        tbody.ondrop = event => {
+          event.preventDefault();
+          const target = event.target.closest('tr');
+          if (dragged && target) tbody.insertBefore(dragged, target);
+        };
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.equal(result.status, 'answered');
+    assert.deepEqual(await page.locator('table.ic_ordering > tbody > tr').evaluateAll(rows => rows.map(row => row.dataset.item)),
+      ['c', 'a', 'b']);
+    assert.equal(await page.evaluate(() => secondChecks), 6);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('avoids duplicating a fixed first letter in an edit gap', async () => {
   const browser = await launchTestBrowser();
   try {
