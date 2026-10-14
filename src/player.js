@@ -15,7 +15,7 @@ const NEXT = '.ic_button_nextpage:not([class*="disabled"]):visible, button:visib
 const DONE = 'button:visible:text-is("Done"), a:visible:text-is("Done"), [role="button"]:visible:text-is("Done"), :visible:text-is("Done")';
 const SAVE_EXIT = 'button:visible:text-matches("^Save & Exit$", "i"), a:visible:text-matches("^Save & Exit$", "i")';
 
-const FIELD_SELECTOR = 'input[type="text"]:not([role="presentation"]):not(.pageNumberInput):not([tabindex="-1"]), input[type="edit"]:not([tabindex="-1"]), input:not([type]):not([role="presentation"]):not(.pageNumberInput):not([tabindex="-1"]), textarea, select:not(.textaudio-playback-rate select), [contenteditable="true"]';
+const FIELD_SELECTOR = 'input[type="text"]:not([role="presentation"]):not(.pageNumberInput):not([tabindex="-1"]), input[type="edit"]:not([tabindex="-1"]), input:not([type]):not([role="presentation"]):not(.pageNumberInput):not([tabindex="-1"]), textarea, select:not(.textaudio-playback-rate select):not(.video-playback-rate select), [contenteditable="true"]';
 const CHOICE_SELECTOR = 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], .ic_choice, .addon_Text_Selection .selectable';
 
 function normalizeAnswerText(value) {
@@ -71,7 +71,7 @@ async function clickAllChecks(scope) {
   throw new Error('More than 30 Check controls appeared on one page');
 }
 
-async function finishDeferredSecondaryActivity(scope, checkLimit, kind) {
+async function finishDeferredSecondaryActivity(scope, checkLimit, kind, before) {
   const checks = scope.locator('[id^="Limited_Check"]');
   const resets = scope.locator('[id^="Limited_Reset"]');
   const shows = scope.locator('.addon_Limited_Show_Answers .limited-show-answers-button');
@@ -105,7 +105,9 @@ async function finishDeferredSecondaryActivity(scope, checkLimit, kind) {
   }
   const answers = kind === 'coloring'
     ? (await captureOverlay(scope)).coloring
-    : await captureConnections(scope);
+    : kind === 'fields'
+      ? buildAnswerPlan(before, await captureOverlay(scope)).fields
+      : await captureConnections(scope);
   if (!answers.length) {
     const file = path.join(process.cwd(), 'diagnostics', `deferred-activity-${Date.now()}.html`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -114,7 +116,7 @@ async function finishDeferredSecondaryActivity(scope, checkLimit, kind) {
   }
   await show.click({ force: true });
   await clickReset(scope, reset);
-  const emptyPlan = { fields: [], choices: [], options: [], drops: [], tableRadio: [],
+  const emptyPlan = { fields: kind === 'fields' ? answers : [], choices: [], options: [], drops: [], tableRadio: [],
     tableCheckbox: [], ordering: [], multigap: [], connections: kind === 'connections' ? answers : [],
     coloring: kind === 'coloring' ? answers : [] };
   await fillAnswerPlan(scope, emptyPlan);
@@ -268,7 +270,10 @@ async function captureOverlay(scope) {
       .map(addon => ({ id: addon.id,
         answers: [...addon.querySelectorAll('.placeholder-show-answers')]
           .map(item => (item.innerText || '').replace(/\s+/g, ' ').trim()) }));
-    return { markers, fields, choices, coloring, tableRadio, tableCheckbox, ordering, multigap };
+    const emptyCorrectDropIds = [...document.querySelectorAll('.ic_draggableGapEmpty-correct-answer[id]')]
+      .filter(visible).map(element => element.id);
+    return { markers, fields, choices, coloring, tableRadio, tableCheckbox, ordering,
+      multigap, emptyCorrectDropIds };
   }, { fieldSelector: FIELD_SELECTOR, choiceSelector: CHOICE_SELECTOR });
 }
 
@@ -391,8 +396,12 @@ function buildAnswerPlan(before, overlay) {
   const drops = [];
   const usedDropMarkers = new Set();
   for (const drop of before.drops) {
+    if (overlay.emptyCorrectDropIds?.includes(drop.id)) {
+      drops.push({ id: drop.id, answer: '', preserve: true });
+      continue;
+    }
     const candidates = overlay.markers.map((marker, index) => ({ marker, index,
-      distance: Math.hypot(marker.x - drop.x, marker.y - drop.y),
+      distance: marker.id === drop.id ? -1 : Math.hypot(marker.x - drop.x, marker.y - drop.y),
     })).filter(item =>
       (/draggableGapFilled-correct-answer/.test(item.marker.className) ||
         (/ic_gap-show-answers/.test(item.marker.className) && item.marker.id === drop.id)) &&
@@ -829,7 +838,10 @@ async function solveCurrentPage(page, checkLimit) {
       plan.multigap.length + plan.connections.length === 0) {
     throw new Error('Answers were shown, but no supported answer markers could be mapped to controls');
   }
-  if (plan.fields.length !== before.fields.length) {
+  const deferredFields = plan.fields.length < before.fields.length && plan.drops.length > 0 &&
+    await scope.locator('[id^="Limited_Check"]').count() >= 2 &&
+    await scope.locator('.addon_Limited_Show_Answers .limited-show-answers-button').count() >= 2;
+  if (plan.fields.length !== before.fields.length && !deferredFields) {
     const file = path.join(process.cwd(), 'diagnostics', `missing-fields-${Date.now()}.json`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify({ before, overlay, plan,
@@ -853,11 +865,12 @@ async function solveCurrentPage(page, checkLimit) {
   const deferredColoring = plan.coloring.length === 0 &&
     await scope.locator('.addon_Text_Coloring .text-coloring-selectable-word').count() > 0 &&
     await scope.locator('[id^="Limited_Check"]').count() >= 2;
-  if (deferredColoring || deferredConnections) {
+  if (deferredColoring || deferredConnections || deferredFields) {
     await clickCheck(scope.locator('[id^="Limited_Check"]').first());
-    const kind = deferredConnections ? 'connections' : 'coloring';
-    const revealed = await finishDeferredSecondaryActivity(scope, checkLimit, kind);
+    const kind = deferredConnections ? 'connections' : deferredFields ? 'fields' : 'coloring';
+    const revealed = await finishDeferredSecondaryActivity(scope, checkLimit, kind, before);
     if (deferredConnections) plan.connections.push(...revealed);
+    else if (deferredFields) plan.fields.push(...revealed);
     else plan.coloring.push(...revealed);
   } else {
     await clickAllChecks(scope);

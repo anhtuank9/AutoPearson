@@ -91,6 +91,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
     const page = await browser.newPage();
     await page.setContent(`
       <main>
+        <div class="video-playback-rate"><select><option value="1">1</option><option value="1.25">1.25</option></select></div>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="playing">playing</option><option value="to play">to play</option></select></p>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="doing">doing</option><option value="do">do</option></select></p>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="wasnt">wasn't</option><option value="was">was</option></select></p>
@@ -121,7 +122,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
               const marker = document.createElement('span');
               marker.className = 'ic_inlineChoice-correct-answer';
               marker.textContent = answer;
-              document.querySelectorAll('select')[index].after(marker);
+              document.querySelectorAll('select.ic_inlineChoice')[index].after(marker);
             });
             event.target.className = 'limited-hide-answers-button';
           } else {
@@ -133,7 +134,8 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
     `);
     const result = await solveCurrentPage(page, 5);
     assert.equal(result.status, 'answered');
-    assert.deepEqual(await page.locator('select').evaluateAll(elements => elements.map(el => el.value)), ['playing', 'doing', 'wasnt']);
+    assert.deepEqual(await page.locator('select.ic_inlineChoice').evaluateAll(elements => elements.map(el => el.value)), ['playing', 'doing', 'wasnt']);
+    assert.equal(await page.locator('.video-playback-rate select').inputValue(), '1');
     assert.equal(await page.evaluate(() => count), 6);
   } finally {
     await browser.close();
@@ -317,6 +319,66 @@ test('completes a coloring activity unlocked after a text activity on the same p
   }
 });
 
+test('fills fields unlocked after a drag activity on the same page', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <div class="ic_sourceListItem ui-draggable" id="source">ball</div>
+        <div class="ic_draggableGapEmpty" id="drop" style="width:100px;height:30px"></div>
+        <div style="height:200px"></div>
+        <input type="text" id="gap" style="width:100px;height:30px">
+        <div id="Limited_Check1" class="ic_button_limited_check" style="width:40px;height:40px">Check 1</div>
+        <div id="Limited_Reset1" class="ic_button_limited_reset" style="width:40px;height:40px">Reset 1</div>
+        <div class="addon_Limited_Show_Answers" id="Limited_Show_Answers1" style="display:none">
+          <div class="limited-show-answers-wrapper"><div class="limited-show-answers-button" style="width:40px;height:40px">Show 1</div></div>
+        </div>
+        <div id="Limited_Check2" class="ic_button_limited_check" style="width:40px;height:40px">Check 2</div>
+        <div id="Limited_Reset2" class="ic_button_limited_reset" style="width:40px;height:40px">Reset 2</div>
+        <div class="addon_Limited_Show_Answers" id="Limited_Show_Answers2" style="display:none">
+          <div class="limited-show-answers-wrapper"><div class="limited-show-answers-button" style="width:40px;height:40px">Show 2</div></div>
+        </div>
+      </main>
+      <script>
+        let firstChecks = 0, secondChecks = 0, selected = false;
+        const drop = document.querySelector('#drop');
+        const gap = document.querySelector('#gap');
+        document.querySelector('#source').onclick = () => { selected = true; };
+        drop.onclick = () => { if (selected) { drop.className = 'ic_draggableGapFilled'; drop.textContent = 'ball'; } };
+        document.querySelector('#Limited_Check1').onclick = () => {
+          if (++firstChecks >= 5) document.querySelector('#Limited_Show_Answers1').style.display = 'block';
+        };
+        document.querySelector('#Limited_Check2').onclick = () => {
+          if (++secondChecks >= 5) document.querySelector('#Limited_Show_Answers2').style.display = 'block';
+        };
+        document.querySelector('#Limited_Reset1').onclick = () => {};
+        document.querySelector('#Limited_Reset2').onclick = () => {};
+        document.querySelector('#Limited_Show_Answers1 .limited-show-answers-button').onclick = event => {
+          const wrapper = event.target.closest('.limited-show-answers-wrapper');
+          wrapper.classList.toggle('selected');
+          drop.className = wrapper.classList.contains('selected')
+            ? 'ic_draggableGapFilled-correct-answer' : 'ic_draggableGapEmpty';
+          drop.textContent = wrapper.classList.contains('selected') ? 'ball' : '';
+        };
+        document.querySelector('#Limited_Show_Answers2 .limited-show-answers-button').onclick = event => {
+          const wrapper = event.target.closest('.limited-show-answers-wrapper');
+          wrapper.classList.toggle('selected');
+          gap.className = wrapper.classList.contains('selected') ? 'ic_gap-correct-answer' : '';
+          gap.value = wrapper.classList.contains('selected') ? 'racquet' : '';
+        };
+      </script>
+    `);
+    const result = await solveCurrentPage(page, 5);
+    assert.equal(result.status, 'answered');
+    assert.equal(await page.locator('#drop').innerText(), 'ball');
+    assert.equal(await page.locator('#gap').inputValue(), 'racquet');
+    assert.equal(await page.evaluate(() => secondChecks), 6);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('avoids duplicating a fixed first letter in an edit gap', async () => {
   const browser = await launchTestBrowser();
   try {
@@ -361,6 +423,7 @@ test('maps revealed words to drag targets and checks the completed exercise', as
         <p>One <span id="3gap-1" class="ic_draggableGapEmpty" style="display:inline-block;width:100px;height:30px;border:1px solid"></span></p>
         <p>Two <span id="gap-2" class="ic_draggableGapEmpty" style="display:inline-block;width:100px;height:30px;border:1px solid"></span></p>
         <p>Example <span id="gap-3" class="ic_draggableGapFilled" style="display:inline-block;width:100px;height:30px;border:1px solid">example</span></p>
+        <p>Leave blank <span id="gap-blank" class="ic_draggableGapEmpty" style="display:inline-block;width:100px;height:30px;border:1px solid"></span></p>
         <button class="ic_button_check" id="check">Check</button>
         <button class="ic_button_reset" id="reset">Reset</button>
         <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
@@ -379,6 +442,8 @@ test('maps revealed words to drag targets and checks the completed exercise', as
             gap.className = shown ? 'ic_draggableGapFilled-correct-answer' : 'ic_draggableGapEmpty';
             gap.textContent = shown ? word : '';
           });
+          document.querySelector('#gap-blank').className = shown
+            ? 'ic_draggableGapEmpty-correct-answer' : 'ic_draggableGapEmpty';
           event.target.className = shown ? 'limited-hide-answers-button' : 'limited-show-answers-button';
         });
         document.querySelectorAll('.ic_sourceListItem').forEach(source => {
@@ -396,8 +461,8 @@ test('maps revealed words to drag targets and checks the completed exercise', as
     `);
     const result = await solveCurrentPage(page, 5);
     assert.equal(result.status, 'answered');
-    assert.equal(result.plan.drops.length, 3);
-    assert.deepEqual(await page.locator('[id*="gap-"]').evaluateAll(elements => elements.map(el => el.textContent)), ['isn’t very', 'going', 'example']);
+    assert.equal(result.plan.drops.length, 4);
+    assert.deepEqual(await page.locator('[id*="gap-"]').evaluateAll(elements => elements.map(el => el.textContent)), ['isn’t very', 'going', 'example', '']);
     assert.equal(await page.evaluate(() => count), 6);
   } finally {
     await browser.close();
