@@ -19,7 +19,13 @@ const FIELD_SELECTOR = 'input[type="text"]:not([role="presentation"]):not(.pageN
 const CHOICE_SELECTOR = 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], .ic_choice, .addon_Text_Selection .selectable';
 
 function normalizeAnswerText(value) {
-  return value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
+  return value.replace(/&(?:apos|#0*39|#x0*27);/gi, "'")
+    .replace(/&(?:quot|#0*34|#x0*22);/gi, '"')
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&nbsp;|\u00a0/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
     .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
 }
 
@@ -268,9 +274,9 @@ async function captureOverlay(scope) {
 
 async function captureConnections(scope) {
   return scope.evaluate(() => {
-    const addon = [...document.querySelectorAll('.addon_Connection')]
-      .find(element => element.getBoundingClientRect().width > 0);
-    if (!addon) return [];
+    const addons = [...document.querySelectorAll('.addon_Connection')]
+      .filter(element => element.getBoundingClientRect().width > 0);
+    return addons.flatMap(addon => {
     const canvas = addon.querySelector('canvas.connections');
     const left = [...addon.querySelectorAll('.connectionLeftColumn .connectionItem')];
     const right = [...addon.querySelectorAll('.connectionRightColumn .connectionItem')];
@@ -330,12 +336,13 @@ async function captureConnections(scope) {
       if (from.distance > 25 || to.distance > 25) {
         throw new Error(`Connection line misses an item (${from.distance.toFixed(1)}, ${to.distance.toFixed(1)})`);
       }
-      return { from: from.id, to: to.id };
+      return { addonId: addon.id, from: from.id, to: to.id };
     });
     if (new Set(pairs.map(pair => pair.from)).size !== left.length) {
       throw new Error(`Connection lines do not cover each prompt: ${JSON.stringify(pairs)}`);
     }
     return pairs;
+    });
   });
 }
 
@@ -412,7 +419,8 @@ async function fillAnswerPlan(scope, plan) {
   for (const field of plan.fields) {
     const locator = fields.nth(field.index);
     if (field.tag === 'select') {
-      const matchIndex = field.options.findIndex(option => option.text.trim() === field.answer.trim());
+      const matchIndex = field.options.findIndex(option =>
+        normalizeAnswerText(option.text) === normalizeAnswerText(field.answer));
       if (matchIndex < 0) throw new Error(`No dropdown option matches revealed answer: ${field.answer}`);
       await locator.selectOption({ index: matchIndex });
     } else {
@@ -436,7 +444,7 @@ async function fillAnswerPlan(scope, plan) {
   }
   for (const option of plan.options) {
     if (!/^[A-Za-z0-9_-]+$/.test(option.id)) throw new Error(`Unexpected choice option ID: ${option.id}`);
-    await scope.locator(`[id="${option.id}"]`).click();
+    await scope.locator(`[id="${option.id}"]`).click({ force: true });
   }
   for (const radio of plan.tableRadio) {
     await scope.locator('tr:has(> td.tf_radio_image)').nth(radio.rowIndex)
@@ -456,16 +464,16 @@ async function fillAnswerPlan(scope, plan) {
     if (!/^[A-Za-z0-9_-]+$/.test(order.id)) throw new Error(`Unexpected ordering table ID: ${order.id}`);
     const table = scope.locator(`[id="${order.id}"]`);
     for (let desired = 0; desired < order.items.length; desired++) {
-      const rows = table.locator('tbody > tr');
+      const rows = table.locator(':scope > tbody > tr');
       const current = await rows.evaluateAll(elements => elements.map(row =>
-        (row.innerText || '').replace(/\s+/g, ' ').trim()));
+        (row.querySelector('.ic_ordering-item')?.innerText || '').replace(/\s+/g, ' ').trim()));
       if (current[desired] === order.items[desired]) continue;
       const sourceIndex = current.findIndex((item, index) => index > desired && item === order.items[desired]);
       if (sourceIndex < 0) throw new Error(`Ordering answer not found: ${order.items[desired]}`);
       await rows.nth(sourceIndex).dragTo(rows.nth(desired),
         { targetPosition: { x: 30, y: 2 } });
       const updated = await rows.evaluateAll(elements => elements.map(row =>
-        (row.innerText || '').replace(/\s+/g, ' ').trim()));
+        (row.querySelector('.ic_ordering-item')?.innerText || '').replace(/\s+/g, ' ').trim()));
       if (updated[desired] !== order.items[desired]) {
         throw new Error(`Ordering drag did not move ${order.items[desired]} to position ${desired + 1}: ${JSON.stringify(updated)}`);
       }
@@ -559,14 +567,20 @@ async function fillAnswerPlan(scope, plan) {
     }
   }
   for (const pair of plan.connections) {
-    const source = scope.locator(`[id="${pair.from}"]`);
-    const target = scope.locator(`[id="${pair.to}"]`);
+    if (!/^[A-Za-z0-9_-]+$/.test(pair.addonId) ||
+        !/^[A-Za-z0-9_-]+$/.test(pair.from) || !/^[A-Za-z0-9_-]+$/.test(pair.to)) {
+      throw new Error(`Unexpected connection target: ${JSON.stringify(pair)}`);
+    }
+    const addon = scope.locator(`[id="${pair.addonId}"]`);
+    const source = addon.locator(`[id="${pair.from}"]`);
+    const target = addon.locator(`[id="${pair.to}"]`);
     const sourceIcon = source.locator('.iconWrapper');
     const targetIcon = target.locator('.iconWrapper');
-    const canvas = scope.locator('.addon_Connection:visible canvas.connections').first();
+    const canvas = addon.locator('canvas.connections');
     const hasLine = () => canvas.evaluate((element, ids) => {
-      const from = document.getElementById(ids.from)?.querySelector('.iconWrapper');
-      const to = document.getElementById(ids.to)?.querySelector('.iconWrapper');
+      const group = element.closest('.addon_Connection');
+      const from = group?.querySelector(`[id="${ids.from}"] .iconWrapper`);
+      const to = group?.querySelector(`[id="${ids.to}"] .iconWrapper`);
       if (!from || !to) return false;
       const rect = element.getBoundingClientRect();
       const centerY = item => {
@@ -639,9 +653,9 @@ async function fillAnswerPlan(scope, plan) {
       const file = path.join(process.cwd(), 'diagnostics', `connection-after-${Date.now()}.png`);
       fs.mkdirSync(path.dirname(file), { recursive: true });
       await canvas.screenshot({ path: file, timeout: 5000 }).catch(() => {});
-      const layout = await scope.evaluate(ids => {
+      const layout = await addon.evaluate((group, ids) => {
         const describe = id => {
-          const item = document.getElementById(id);
+          const item = group.querySelector(`[id="${id}"]`);
           const element = item?.querySelector('.iconWrapper');
           const box = element?.getBoundingClientRect();
           if (!box) return null;
@@ -656,8 +670,7 @@ async function fillAnswerPlan(scope, plan) {
         return { from: describe(ids.from), to: describe(ids.to) };
       }, pair);
       const htmlFile = path.join(process.cwd(), 'diagnostics', `connection-dom-${Date.now()}.html`);
-      fs.writeFileSync(htmlFile, await scope.evaluate(() =>
-        document.querySelector('.addon_Connection')?.outerHTML || ''));
+      fs.writeFileSync(htmlFile, await addon.evaluate(element => element.outerHTML));
       throw new Error(`Pearson did not draw connection ${pair.from} -> ${pair.to}; ${JSON.stringify(layout)}; ${file}; ${htmlFile}`);
     }
   }

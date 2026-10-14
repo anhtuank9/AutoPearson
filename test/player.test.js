@@ -93,6 +93,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
       <main>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="playing">playing</option><option value="to play">to play</option></select></p>
         <p><select class="ic_inlineChoice"><option value="-">---</option><option value="doing">doing</option><option value="do">do</option></select></p>
+        <p><select class="ic_inlineChoice"><option value="-">---</option><option value="wasnt">wasn't</option><option value="was">was</option></select></p>
         <button class="ic_button_check" id="check">Check</button>
         <button class="ic_button_reset" id="reset">Reset</button>
         <button class="limited-show-answers-button" id="show" hidden>Show Answers</button>
@@ -116,7 +117,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
         });
         document.querySelector('#show').addEventListener('click', event => {
           if (event.target.className === 'limited-show-answers-button') {
-            ['playing', 'doing'].forEach((answer, index) => {
+            ['playing', 'doing', 'wasn&apos;t'].forEach((answer, index) => {
               const marker = document.createElement('span');
               marker.className = 'ic_inlineChoice-correct-answer';
               marker.textContent = answer;
@@ -132,7 +133,7 @@ test('uses Reset between checks and fills revealed dropdown answers', async () =
     `);
     const result = await solveCurrentPage(page, 5);
     assert.equal(result.status, 'answered');
-    assert.deepEqual(await page.locator('select').evaluateAll(elements => elements.map(el => el.value)), ['playing', 'doing']);
+    assert.deepEqual(await page.locator('select').evaluateAll(elements => elements.map(el => el.value)), ['playing', 'doing', 'wasnt']);
     assert.equal(await page.evaluate(() => count), 6);
   } finally {
     await browser.close();
@@ -450,7 +451,7 @@ test('reads crossing answer lines from a connection canvas', async () => {
   try {
     const page = await browser.newPage();
     await page.setContent(`
-      <div class="addon_Connection" style="display:flex;align-items:flex-start">
+      <div class="addon_Connection" id="Connection1" style="display:flex;align-items:flex-start">
         <div class="connectionLeftColumn">
           <div class="connectionItem" id="connection-1" style="height:60px;width:100px">1</div>
           <div class="connectionItem" id="connection-2" style="height:60px;width:100px">2</div>
@@ -477,9 +478,37 @@ test('reads crossing answer lines from a connection canvas', async () => {
     `);
     const pairs = await captureConnections(page.mainFrame());
     assert.deepEqual(pairs.sort((a, b) => a.from.localeCompare(b.from)), [
-      { from: 'connection-1', to: 'connection-b' },
-      { from: 'connection-2', to: 'connection-c' },
-      { from: 'connection-3', to: 'connection-a' },
+      { addonId: 'Connection1', from: 'connection-1', to: 'connection-b' },
+      { addonId: 'Connection1', from: 'connection-2', to: 'connection-c' },
+      { addonId: 'Connection1', from: 'connection-3', to: 'connection-a' },
+    ]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('keeps duplicate connection item IDs inside their own activity', async () => {
+  const browser = await launchTestBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent([1, 2].map(index => `
+      <div class="addon_Connection" id="Connection${index}" style="display:flex">
+        <div class="connectionLeftColumn"><div class="connectionItem" id="connection-1" style="height:60px;width:100px">${index}</div></div>
+        <canvas class="connections" width="100" height="60"></canvas>
+        <div class="connectionRightColumn"><div class="connectionItem" id="connection-a" style="height:60px;width:100px">a</div></div>
+      </div>`).join(''));
+    await page.locator('canvas').evaluateAll(canvases => canvases.forEach(canvas => {
+      const context = canvas.getContext('2d');
+      context.strokeStyle = '#00dd00';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(0, 30);
+      context.lineTo(99, 30);
+      context.stroke();
+    }));
+    assert.deepEqual(await captureConnections(page.mainFrame()), [
+      { addonId: 'Connection1', from: 'connection-1', to: 'connection-a' },
+      { addonId: 'Connection2', from: 'connection-1', to: 'connection-a' },
     ]);
   } finally {
     await browser.close();
