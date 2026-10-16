@@ -1,5 +1,7 @@
 # AutoPearson
 
+**Ngôn ngữ / Language:** [Tiếng Việt](README.md) | [English](README.en.md)
+
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/anhtuank9/AutoPearson?quickstart=1)
 
 AutoPearson là công cụ Playwright chạy trên máy cá nhân hoặc GitHub Codespaces để xử lý các assignment đang mở trong Pearson English Connect. Công cụ đăng nhập, duyệt assignment theo hạn nộp mới nhất, xử lý từng lesson dưới 100%, dùng **Save & Exit**, rồi tải lại danh sách để xác nhận điểm.
